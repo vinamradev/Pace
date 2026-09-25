@@ -1663,3 +1663,12 @@ select {
   font-size: 9px;
   font-weight: 600;
 }
+
+/* iOS Safari - prevent form focus zoom */
+@media screen and (max-width: 768px) {
+  .modal input,
+  .modal select,
+  .modal textarea {
+    font-size: 16px !important;
+  }
+}
