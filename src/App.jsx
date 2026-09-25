@@ -1,1115 +1,1770 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
+
+const TRANSACTION_CATEGORIES = [
+  "Food",
+  "Shopping",
+  "Transport",
+  "Bills",
+  "Entertainment",
+  "Health",
+  "Education",
+  "Subscriptions",
+  "Other",
+];
+
+const GOAL_CATEGORIES = [
+  "Personal",
+  "Electronics",
+  "Travel",
+  "Education",
+  "Emergency",
+  "Vehicle",
+  "Home",
+  "Health",
+  "Shopping",
+  "Wedding",
+  "Investment",
+  "Other",
+];
+
+const PAYMENT_METHODS = ["UPI", "Card", "Cash", "Bank Transfer", "Other"];
+
+const CATEGORY_ICONS = {
+  Food: "🍔",
+  Shopping: "🛒",
+  Transport: "🚕",
+  Bills: "📄",
+  Entertainment: "🎬",
+  Health: "💊",
+  Education: "📚",
+  Subscriptions: "🔁",
+  Other: "💳",
+};
 
 const initialTransactions = [
   {
     id: 1,
-    icon: "🍔",
     title: "Zomato",
     category: "Food",
-    amount: 420,
+    amount: 320,
     type: "expense",
-    time: "Today, 1:20 PM",
+    date: "2026-09-25",
+    icon: "🍔",
+    paymentMethod: "UPI",
+    note: "",
   },
   {
     id: 2,
-    icon: "🛒",
     title: "Blinkit",
-    category: "Groceries",
-    amount: 680,
+    category: "Shopping",
+    amount: 540,
     type: "expense",
-    time: "Today, 10:15 AM",
+    date: "2026-09-24",
+    icon: "🛒",
+    paymentMethod: "UPI",
+    note: "",
   },
   {
     id: 3,
-    icon: "☕",
     title: "Starbucks",
     category: "Food",
     amount: 280,
     type: "expense",
-    time: "Yesterday, 6:42 PM",
+    date: "2026-09-23",
+    icon: "☕",
+    paymentMethod: "UPI",
+    note: "",
   },
   {
     id: 4,
-    icon: "💰",
     title: "Salary",
     category: "Income",
-    amount: 42000,
+    amount: 30000,
     type: "income",
-    time: "24 Sep, 10:00 AM",
+    date: "2026-09-01",
+    icon: "💰",
+    paymentMethod: "Bank Transfer",
+    note: "",
   },
 ];
 
-function App() {
-  // =============================
-  // STATE
-  // =============================
+const initialGoals = [
+  {
+    id: 1,
+    name: "Emergency Fund",
+    icon: "🚨",
+    category: "Emergency",
+    target: 50000,
+    saved: 15000,
+    date: "2026-12-31",
+  },
+  {
+    id: 2,
+    name: "Travel",
+    icon: "✈️",
+    category: "Travel",
+    target: 30000,
+    saved: 8000,
+    date: "2027-03-31",
+  },
+];
 
-  const [transactions, setTransactions] = useState(() => {
-    try {
-      const savedTransactions = localStorage.getItem(
-        "pace-transactions"
-      );
+const defaultBudget = 20000;
+const defaultGuardThreshold = 80;
 
-      if (savedTransactions) {
-        return JSON.parse(savedTransactions);
-      }
+function loadLocal(key, fallback) {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
-      return initialTransactions;
-    } catch (error) {
-      console.error(
-        "Failed to load transactions:",
-        error
-      );
+function saveLocal(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error(`Failed to save ${key}:`, error);
+  }
+}
 
-      return initialTransactions;
-    }
+function formatCurrency(value) {
+  return `₹${Number(value || 0).toLocaleString("en-IN")}`;
+}
+
+function toDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function isSameMonth(dateString, reference = new Date()) {
+  const date = new Date(`${dateString}T00:00:00`);
+  return (
+    date.getFullYear() === reference.getFullYear() &&
+    date.getMonth() === reference.getMonth()
+  );
+}
+
+function formatDate(dateString) {
+  if (!dateString) return "No date";
+  const date = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "No date";
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
+}
 
+function formatShortDate(dateString) {
+  if (!dateString) return "";
+  const date = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+function getRelativeDateLabel(dateString) {
+  const today = new Date();
+  const todayKey = toDateKey(today);
+
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const yesterdayKey = toDateKey(yesterday);
+
+  if (dateString === todayKey) return "Today";
+  if (dateString === yesterdayKey) return "Yesterday";
+  return formatDate(dateString);
+}
+
+function daysLeftInMonth() {
+  const now = new Date();
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return Math.max(lastDay - now.getDate() + 1, 1);
+}
+
+function App() {
+  const [transactions, setTransactions] = useState(() =>
+    loadLocal("pace-transactions", initialTransactions)
+  );
+
+  const [goals, setGoals] = useState(() =>
+    loadLocal("pace-goals", initialGoals).map((goal) => ({
+      ...goal,
+      category: goal.category || "Personal",
+    }))
+  );
+
+  const [monthlyBudget, setMonthlyBudget] = useState(() =>
+    Number(loadLocal("pace-monthly-budget", defaultBudget))
+  );
+
+  const [categoryBudgets, setCategoryBudgets] = useState(() =>
+    loadLocal("pace-category-budgets", {})
+  );
+
+  const [guardThreshold, setGuardThreshold] = useState(() =>
+    Number(loadLocal("pace-guard-threshold", defaultGuardThreshold))
+  );
+
+  const [activePage, setActivePage] = useState("home");
   const [showForm, setShowForm] = useState(false);
-
-  const [activePage, setActivePage] = useState("Home");
+  const [showGoalForm, setShowGoalForm] = useState(false);
+  const [editingGoalId, setEditingGoalId] = useState(null);
 
   const [formData, setFormData] = useState({
     title: "",
-    amount: "",
     category: "Food",
+    amount: "",
     type: "expense",
+    paymentMethod: "UPI",
+    date: toDateKey(),
+    note: "",
   });
 
-  // =============================
-  // SAVE TRANSACTIONS
-  // =============================
+  const [goalForm, setGoalForm] = useState({
+    name: "",
+    icon: "🎯",
+    category: "Personal",
+    target: "",
+    saved: "",
+    date: "",
+  });
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "pace-transactions",
-        JSON.stringify(transactions)
-      );
-    } catch (error) {
-      console.error(
-        "Failed to save transactions:",
-        error
-      );
-    }
-  }, [transactions]);
+  const [activitySearch, setActivitySearch] = useState("");
+  const [activityType, setActivityType] = useState("all");
+  const [activityCategory, setActivityCategory] = useState("all");
 
-  // =============================
-  // CALCULATIONS
-  // =============================
-
-  const expenses = transactions
-    .filter(
-      (transaction) =>
-        transaction.type === "expense"
-    )
-    .reduce(
-      (total, transaction) =>
-        total + Number(transaction.amount),
-      0
-    );
-
-  const income = transactions
-    .filter(
-      (transaction) =>
-        transaction.type === "income"
-    )
-    .reduce(
-      (total, transaction) =>
-        total + Number(transaction.amount),
-      0
-    );
-
-  const budget = 30000;
-
-  const remaining = budget - expenses;
-
-  const safeToSpend = Math.max(
-    Math.floor(remaining / 6),
-    0
+  useEffect(() => saveLocal("pace-transactions", transactions), [transactions]);
+  useEffect(() => saveLocal("pace-goals", goals), [goals]);
+  useEffect(
+    () => saveLocal("pace-monthly-budget", monthlyBudget),
+    [monthlyBudget]
+  );
+  useEffect(
+    () => saveLocal("pace-category-budgets", categoryBudgets),
+    [categoryBudgets]
+  );
+  useEffect(
+    () => saveLocal("pace-guard-threshold", guardThreshold),
+    [guardThreshold]
   );
 
-  const budgetPercentage = Math.min(
-    Math.max(
-      Math.round((expenses / budget) * 100),
-      0
-    ),
-    100
+  const currentMonthTransactions = useMemo(
+    () => transactions.filter((item) => isSameMonth(item.date)),
+    [transactions]
   );
 
-  const availableMoney = Math.max(
-    income - expenses,
-    0
+  const totalIncome = useMemo(
+    () =>
+      currentMonthTransactions
+        .filter((item) => item.type === "income")
+        .reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    [currentMonthTransactions]
   );
 
-  const savingsPercentage =
-    income > 0
-      ? Math.round(
-        (availableMoney / income) * 100
-      )
+  const totalExpenses = useMemo(
+    () =>
+      currentMonthTransactions
+        .filter((item) => item.type === "expense")
+        .reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    [currentMonthTransactions]
+  );
+
+  const remainingBudget = monthlyBudget - totalExpenses;
+  const budgetUsed =
+    monthlyBudget > 0
+      ? Math.min((totalExpenses / monthlyBudget) * 100, 100)
       : 0;
 
-  // =============================
-  // FORM INPUT
-  // =============================
+  const safeToSpendToday =
+    remainingBudget > 0
+      ? Math.floor(remainingBudget / daysLeftInMonth())
+      : 0;
+
+  const currentSavings = Math.max(totalIncome - totalExpenses, 0);
+
+  const savingsRate =
+    totalIncome > 0 ? Math.min((currentSavings / totalIncome) * 100, 100) : 0;
+
+  const topCategory = useMemo(() => {
+    const totals = {};
+
+    currentMonthTransactions
+      .filter((item) => item.type === "expense")
+      .forEach((item) => {
+        totals[item.category] =
+          (totals[item.category] || 0) + Number(item.amount || 0);
+      });
+
+    const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+
+    return sorted[0] || ["None", 0];
+  }, [currentMonthTransactions]);
+
+  const averageDailyExpense =
+    totalExpenses > 0 ? Math.round(totalExpenses / new Date().getDate()) : 0;
+
+  const categoryBudgetAlerts = useMemo(() => {
+    return TRANSACTION_CATEGORIES
+      .map((category) => {
+        const limit = Number(categoryBudgets[category] || 0);
+
+        if (limit <= 0) return null;
+
+        const spent = currentMonthTransactions
+          .filter(
+            (transaction) =>
+              transaction.type === "expense" &&
+              transaction.category === category
+          )
+          .reduce(
+            (sum, transaction) => sum + Number(transaction.amount || 0),
+            0
+          );
+
+        const percentage = (spent / limit) * 100;
+
+        return {
+          category,
+          limit,
+          spent,
+          percentage,
+          overLimit: percentage >= 100,
+        };
+      })
+      .filter(Boolean);
+  }, [categoryBudgets, currentMonthTransactions]);
+
+  const overLimitCategories = categoryBudgetAlerts.filter(
+    (item) => item.overLimit
+  );
+
+  const nearLimitCategories = categoryBudgetAlerts.filter(
+    (item) => item.percentage >= 80 && !item.overLimit
+  );
+
+  const filteredTransactions = useMemo(() => {
+    const query = activitySearch.trim().toLowerCase();
+
+    return [...transactions]
+      .filter((transaction) => {
+        const matchesSearch =
+          !query ||
+          transaction.title.toLowerCase().includes(query) ||
+          transaction.category.toLowerCase().includes(query) ||
+          (transaction.note || "").toLowerCase().includes(query);
+
+        const matchesType =
+          activityType === "all" || transaction.type === activityType;
+
+        const matchesCategory =
+          activityCategory === "all" ||
+          transaction.category === activityCategory;
+
+        return matchesSearch && matchesType && matchesCategory;
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [transactions, activitySearch, activityType, activityCategory]);
+
+  const groupedTransactions = useMemo(() => {
+    const groups = {};
+
+    filteredTransactions.forEach((transaction) => {
+      const label = getRelativeDateLabel(transaction.date);
+
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(transaction);
+    });
+
+    return Object.entries(groups);
+  }, [filteredTransactions]);
 
   function handleInputChange(event) {
     const { name, value } = event.target;
 
-    setFormData((previousData) => ({
-      ...previousData,
+    setFormData((previous) => ({
+      ...previous,
       [name]: value,
     }));
   }
 
-  // =============================
-  // ADD TRANSACTION
-  // =============================
+  function openTransactionForm() {
+    setFormData({
+      title: "",
+      category: "Food",
+      amount: "",
+      type: "expense",
+      paymentMethod: "UPI",
+      date: toDateKey(),
+      note: "",
+    });
+    setShowForm(true);
+  }
+
+  function closeTransactionForm() {
+    setShowForm(false);
+  }
 
   function addTransaction(event) {
     event.preventDefault();
 
-    const title = formData.title.trim();
+    if (!formData.title.trim() || !formData.amount || Number(formData.amount) <= 0) {
+      return;
+    }
 
     const amount = Number(formData.amount);
 
-    if (!title) {
-      alert("Please enter a transaction name.");
-      return;
-    }
-
-    if (!amount || amount <= 0) {
-      alert("Please enter a valid amount.");
-      return;
-    }
-
     const newTransaction = {
       id: Date.now(),
-
+      title: formData.title.trim(),
+      category: formData.category,
+      amount,
+      type: formData.type,
+      date: formData.date || toDateKey(),
       icon:
         formData.type === "income"
           ? "💰"
-          : "💳",
-
-      title,
-
-      category: formData.category,
-
-      amount,
-
-      type: formData.type,
-
-      time: "Just now",
+          : CATEGORY_ICONS[formData.category] || "💳",
+      paymentMethod: formData.paymentMethod,
+      note: formData.note.trim(),
     };
 
-    setTransactions((previousTransactions) => [
-      newTransaction,
-      ...previousTransactions,
-    ]);
-
-    setFormData({
-      title: "",
-      amount: "",
-      category: "Food",
-      type: "expense",
-    });
-
-    setShowForm(false);
+    setTransactions((previous) => [newTransaction, ...previous]);
+    closeTransactionForm();
   }
-
-  // =============================
-  // DELETE TRANSACTION
-  // =============================
 
   function deleteTransaction(id) {
-    setTransactions((previousTransactions) =>
-      previousTransactions.filter(
-        (transaction) =>
-          transaction.id !== id
-      )
+    const confirmed = window.confirm("Delete this transaction?");
+
+    if (!confirmed) return;
+
+    setTransactions((previous) =>
+      previous.filter((transaction) => transaction.id !== id)
     );
   }
 
-  // =============================
-  // RESET DEMO DATA
-  // =============================
+  function handleGoalInputChange(event) {
+    const { name, value } = event.target;
 
-  function resetTransactions() {
-    const confirmed = window.confirm(
-      "Reset all transactions to demo data?"
-    );
+    setGoalForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  }
 
-    if (!confirmed) {
+  function saveGoal(event) {
+    event.preventDefault();
+
+    if (!goalForm.name.trim() || !goalForm.target) return;
+
+    const target = Number(goalForm.target);
+    const saved = Number(goalForm.saved) || 0;
+
+    if (target <= 0) {
+      window.alert("Target amount must be greater than 0.");
       return;
     }
 
-    setTransactions(initialTransactions);
+    if (saved < 0 || saved > target) {
+      window.alert("Saved amount cannot be greater than target amount.");
+      return;
+    }
+
+    if (editingGoalId !== null) {
+      setGoals((previous) =>
+        previous.map((goal) =>
+          goal.id === editingGoalId
+            ? {
+              ...goal,
+              name: goalForm.name.trim(),
+              icon: goalForm.icon || "🎯",
+              category: goalForm.category || "Personal",
+              target,
+              saved,
+              date: goalForm.date,
+            }
+            : goal
+        )
+      );
+    } else {
+      setGoals((previous) => [
+        ...previous,
+        {
+          id: Date.now(),
+          name: goalForm.name.trim(),
+          icon: goalForm.icon || "🎯",
+          category: goalForm.category || "Personal",
+          target,
+          saved,
+          date: goalForm.date,
+        },
+      ]);
+    }
+
+    closeGoalForm();
   }
 
-  // =============================
-  // UI
-  // =============================
+  function editGoal(goal) {
+    setEditingGoalId(goal.id);
 
-  return (
-    <main className="app">
+    setGoalForm({
+      name: goal.name,
+      icon: goal.icon || "🎯",
+      category: goal.category || "Personal",
+      target: goal.target,
+      saved: goal.saved,
+      date: goal.date || "",
+    });
 
-      {/* HEADER */}
+    setShowGoalForm(true);
+  }
 
-      <header className="header">
+  function deleteGoal(id) {
+    const confirmed = window.confirm("Are you sure you want to delete this goal?");
 
-        <div>
-          <h1 className="logo">
-            PACE
-          </h1>
+    if (!confirmed) return;
 
-          <p className="tagline">
-            Spend with intention. Save with
-            purpose.
+    setGoals((previous) => previous.filter((goal) => goal.id !== id));
+  }
+
+  function openNewGoalForm() {
+    setEditingGoalId(null);
+
+    setGoalForm({
+      name: "",
+      icon: "🎯",
+      category: "Personal",
+      target: "",
+      saved: "",
+      date: "",
+    });
+
+    setShowGoalForm(true);
+  }
+
+  function closeGoalForm() {
+    setShowGoalForm(false);
+    setEditingGoalId(null);
+
+    setGoalForm({
+      name: "",
+      icon: "🎯",
+      category: "Personal",
+      target: "",
+      saved: "",
+      date: "",
+    });
+  }
+
+  function resetDemoData() {
+    const confirmed = window.confirm(
+      "Reset PACE to the V1 demo data? Your current local data will be replaced."
+    );
+
+    if (!confirmed) return;
+
+    setTransactions(initialTransactions);
+    setGoals(initialGoals);
+    setMonthlyBudget(defaultBudget);
+    setCategoryBudgets({});
+    setGuardThreshold(defaultGuardThreshold);
+    setActivitySearch("");
+    setActivityType("all");
+    setActivityCategory("all");
+    setActivePage("home");
+  }
+
+  function saveBudgetSettings(event) {
+    event.preventDefault();
+
+    const value = Number(event.currentTarget.monthlyBudget.value);
+
+    if (!value || value <= 0) {
+      window.alert("Monthly budget must be greater than 0.");
+      return;
+    }
+
+    setMonthlyBudget(value);
+  }
+
+  function updateCategoryBudget(category, value) {
+    setCategoryBudgets((previous) => ({
+      ...previous,
+      [category]: value === "" ? "" : Number(value),
+    }));
+  }
+
+  function renderPage() {
+    switch (activePage) {
+      case "activity":
+        return <ActivityPage />;
+      case "goals":
+        return <GoalsPage />;
+      case "budgets":
+        return <BudgetsPage />;
+      case "guard":
+        return <SpendingGuardPage />;
+      case "insights":
+        return <InsightsPage />;
+      case "settings":
+        return <SettingsPage />;
+      default:
+        return <HomePage />;
+    }
+  }
+
+  function HomePage() {
+    const guardActive = budgetUsed >= guardThreshold;
+
+    return (
+      <div className="page-content">
+        <header className="header">
+          <div>
+            <h1 className="logo">PACE</h1>
+            <p className="tagline">
+              Spend with intention. Save with purpose.
+            </p>
+          </div>
+
+          <button
+            className="profile-btn"
+            onClick={() => setActivePage("settings")}
+            aria-label="Open settings"
+          >
+            V
+          </button>
+        </header>
+
+        <section className="safe-card">
+          <p className="eyebrow">SAFE TO SPEND TODAY</p>
+
+          <h2>{formatCurrency(safeToSpendToday)}</h2>
+
+          <p className="safe-text">
+            Based on your remaining monthly budget
           </p>
+
+          <div className="progress">
+            <div
+              className="progress-bar"
+              style={{ width: `${budgetUsed}%` }}
+            />
+          </div>
+
+          <div className="progress-info">
+            <span>Budget used</span>
+            <span>{budgetUsed.toFixed(0)}%</span>
+          </div>
+        </section>
+
+        <div className="stats">
+          <StatCard label="Spent" value={totalExpenses} hint="This month" />
+          <StatCard label="Budget" value={monthlyBudget} hint="Monthly limit" />
+          <StatCard label="Income" value={totalIncome} hint="This month" />
+          <StatCard
+            label="Remaining"
+            value={Math.max(remainingBudget, 0)}
+            hint={remainingBudget < 0 ? "Over budget" : "Budget left"}
+          />
         </div>
 
-        <button className="profile-btn">
-          VK
-        </button>
+        <div className="saving-card">
+          <div>
+            <span>Current savings</span>
+            <strong>{formatCurrency(currentSavings)}</strong>
+          </div>
 
-      </header>
+          <div className="saving-circle">{savingsRate.toFixed(0)}%</div>
+        </div>
 
+        <div
+          className={`alert-card ${guardActive || overLimitCategories.length > 0
+              ? "alert-warning"
+              : ""
+            }`}
+        >
+          <div className="alert-icon">
+            {overLimitCategories.length > 0 || guardActive ? "!" : "✓"}
+          </div>
 
-      {/* =========================
-          HOME
-      ========================== */}
+          <div>
+            <h3>
+              {overLimitCategories.length > 0
+                ? `${overLimitCategories[0].category} budget exceeded`
+                : guardActive
+                  ? "Budget warning"
+                  : "You're on track"}
+            </h3>
 
-      {activePage === "Home" && (
-        <>
-          {/* SAFE TO SPEND */}
-
-          <section className="safe-card">
-
-            <p className="eyebrow">
-              SAFE TO SPEND TODAY
+            <p>
+              {overLimitCategories.length > 0
+                ? `${formatCurrency(
+                  overLimitCategories[0].spent
+                )} spent against a ${formatCurrency(
+                  overLimitCategories[0].limit
+                )} limit.`
+                : guardActive
+                  ? `You've used ${budgetUsed.toFixed(
+                    0
+                  )}% of your monthly budget.`
+                  : nearLimitCategories.length > 0
+                    ? `${nearLimitCategories[0].category} is at ${nearLimitCategories[
+                      0
+                    ].percentage.toFixed(0)}% of its limit.`
+                    : `You have ${formatCurrency(
+                      Math.max(remainingBudget, 0)
+                    )} left in your monthly budget.`}
             </p>
-
-            <h2>
-              ₹
-              {safeToSpend.toLocaleString(
-                "en-IN"
-              )}
-            </h2>
-
-            <p className="safe-text">
-              {remaining > 0
-                ? "You're currently within your budget."
-                : "You've crossed your monthly budget."}
-            </p>
-
-            <div className="progress">
-
-              <div
-                className="progress-bar"
-                style={{
-                  width: `${budgetPercentage}%`,
-                }}
-              />
-
-            </div>
-
-            <div className="progress-info">
-
-              <span>
-                ₹
-                {expenses.toLocaleString(
-                  "en-IN"
-                )}{" "}
-                spent
-              </span>
-
-              <span>
-                ₹
-                {budget.toLocaleString(
-                  "en-IN"
-                )}{" "}
-                budget
-              </span>
-
-            </div>
-
-          </section>
-
-
-          {/* STATS */}
-
-          <section className="stats">
-
-            <div className="stat-card">
-
-              <span>
-                Spent
-              </span>
-
-              <strong>
-                ₹
-                {expenses.toLocaleString(
-                  "en-IN"
-                )}
-              </strong>
-
-              <small>
-                This month
-              </small>
-
-            </div>
-
-
-            <div className="stat-card">
-
-              <span>
-                Income
-              </span>
-
-              <strong>
-                ₹
-                {income.toLocaleString(
-                  "en-IN"
-                )}
-              </strong>
-
-              <small>
-                This month
-              </small>
-
-            </div>
-
-          </section>
-
-
-          {/* SAVINGS */}
-
-          <section className="saving-card">
-
-            <div>
-
-              <span>
-                Available after spending
-              </span>
-
-              <strong>
-                ₹
-                {availableMoney.toLocaleString(
-                  "en-IN"
-                )}
-              </strong>
-
-            </div>
-
-            <div className="saving-circle">
-              {savingsPercentage}%
-            </div>
-
-          </section>
-
-
-          {/* ALERT */}
-
-          <section className="alert-card">
-
-            <div className="alert-icon">
-              !
-            </div>
-
-            <div>
-
-              <h3>
-                Spending Alert
-              </h3>
-
-              <p>
-                Food and shopping are taking
-                a large portion of your
-                monthly spending.
-              </p>
-
-            </div>
-
-          </section>
-
-
-          {/* RECENT ACTIVITY */}
-
-          <section className="transactions">
-
-            <div className="section-header">
-
-              <h2>
-                Recent Activity
-              </h2>
-
-              <button
-                onClick={() =>
-                  setActivePage("Activity")
-                }
-              >
-                View all
-              </button>
-
-            </div>
-
-
-            {transactions.length === 0 ? (
-              <EmptyState />
-            ) : (
-              transactions
-                .slice(0, 5)
-                .map((transaction) => (
-                  <Transaction
-                    key={transaction.id}
-                    transaction={transaction}
-                    onDelete={
-                      deleteTransaction
-                    }
-                  />
-                ))
-            )}
-
-          </section>
-
-        </>
-      )}
-
-
-      {/* =========================
-          ACTIVITY
-      ========================== */}
-
-      {activePage === "Activity" && (
-        <section className="page">
-
-          <div className="page-title">
-
-            <span>
-              TRANSACTIONS
-            </span>
-
-            <h2>
-              All Activity
-            </h2>
-
           </div>
-
-
-          {transactions.length === 0 ? (
-            <EmptyState />
-          ) : (
-            transactions.map(
-              (transaction) => (
-                <Transaction
-                  key={transaction.id}
-                  transaction={transaction}
-                  onDelete={
-                    deleteTransaction
-                  }
-                />
-              )
-            )
-          )}
-
-        </section>
-      )}
-
-
-      {/* =========================
-          GOALS
-      ========================== */}
-
-      {activePage === "Goals" && (
-        <section className="page">
-
-          <div className="page-title">
-
-            <span>
-              YOUR MONEY
-            </span>
-
-            <h2>
-              Savings Goals
-            </h2>
-
-          </div>
-
-
-          <div className="goal-card">
-
-            <div className="goal-top">
-
-              <div>
-
-                <span>
-                  🎯
-                </span>
-
-                <h3>
-                  Emergency Fund
-                </h3>
-
-              </div>
-
-              <strong>
-                42%
-              </strong>
-
-            </div>
-
-
-            <div className="goal-progress">
-              <div />
-            </div>
-
-
-            <div className="goal-info">
-
-              <span>
-                ₹42,000 saved
-              </span>
-
-              <span>
-                ₹1,00,000 goal
-              </span>
-
-            </div>
-
-          </div>
-
-
-          <div className="goal-card">
-
-            <div className="goal-top">
-
-              <div>
-
-                <span>
-                  ✈️
-                </span>
-
-                <h3>
-                  Travel
-                </h3>
-
-              </div>
-
-              <strong>
-                28%
-              </strong>
-
-            </div>
-
-
-            <div className="goal-progress">
-
-              <div className="travel-progress" />
-
-            </div>
-
-
-            <div className="goal-info">
-
-              <span>
-                ₹14,000 saved
-              </span>
-
-              <span>
-                ₹50,000 goal
-              </span>
-
-            </div>
-
-          </div>
-
-        </section>
-      )}
-
-
-      {/* =========================
-          MORE
-      ========================== */}
-
-      {activePage === "More" && (
-        <section className="page">
-
-          <div className="page-title">
-
-            <span>
-              PACE
-            </span>
-
-            <h2>
-              More
-            </h2>
-
-          </div>
-
-
-          <div className="menu-list">
-
-            <button>
-              <span>
-                📊 Budgets
-              </span>
-
-              <span>
-                ›
-              </span>
-            </button>
-
-
-            <button>
-              <span>
-                🛡️ Spending Guard
-              </span>
-
-              <span>
-                ›
-              </span>
-            </button>
-
-
-            <button>
-              <span>
-                💡 Insights
-              </span>
-
-              <span>
-                ›
-              </span>
-            </button>
-
-
-            <button>
-              <span>
-                ⚙️ Settings
-              </span>
-
-              <span>
-                ›
-              </span>
-            </button>
-
+        </div>
+        <section className="section">
+          <div className="section-heading">
+            <h2>Category Budgets</h2>
 
             <button
-              onClick={resetTransactions}
+              className="text-btn"
+              onClick={() => setActivePage("budgets")}
             >
-              <span>
-                🔄 Reset Demo Data
-              </span>
-
-              <span>
-                ›
-              </span>
+              Manage →
             </button>
-
           </div>
 
-        </section>
-      )}
-
-
-      {/* =========================
-          ADD TRANSACTION MODAL
-      ========================== */}
-
-      {showForm && (
-        <div
-          className="modal-overlay"
-          onClick={(event) => {
-
-            if (
-              event.target ===
-              event.currentTarget
-            ) {
-              setShowForm(false);
-            }
-
-          }}
-        >
-
-          <div className="modal">
-
-            <div className="modal-header">
-
+          {categoryBudgetAlerts.length === 0 ? (
+            <div className="category-budget-empty">
+              <span>💰</span>
               <div>
-
-                <span>
-                  PACE
-                </span>
-
-                <h2>
-                  Add Transaction
-                </h2>
-
+                <strong>No category limits set</strong>
+                <small>
+                  Set limits for Food, Shopping, Travel and more.
+                </small>
               </div>
 
-
-              <button
-                type="button"
-                onClick={() =>
-                  setShowForm(false)
-                }
-                className="close-btn"
-              >
-                ×
+              <button onClick={() => setActivePage("budgets")}>
+                Set limits →
               </button>
+            </div>
+          ) : (
+            <div className="dashboard-category-budgets">
+              {categoryBudgetAlerts.map((item) => {
+                const percentage = item.percentage;
+                const progress = Math.min(percentage, 100);
 
+                return (
+                  <div
+                    className={`dashboard-category-budget ${item.overLimit ? "over-budget" : ""
+                      }`}
+                    key={item.category}
+                  >
+                    <div className="dashboard-category-top">
+                      <div className="dashboard-category-name">
+                        <span>
+                          {CATEGORY_ICONS[item.category] || "💳"}
+                        </span>
+
+                        <div>
+                          <strong>{item.category}</strong>
+
+                          <small>
+                            {formatCurrency(item.spent)} spent of{" "}
+                            {formatCurrency(item.limit)}
+                          </small>
+                        </div>
+                      </div>
+
+                      <strong>
+                        {percentage.toFixed(0)}%
+                      </strong>
+                    </div>
+
+                    <div className="progress">
+                      <div
+                        className="progress-bar"
+                        style={{
+                          width: `${progress}%`,
+                        }}
+                      />
+                    </div>
+
+                    <div className="dashboard-category-bottom">
+                      <span>
+                        {item.overLimit
+                          ? `${formatCurrency(
+                            item.spent - item.limit
+                          )} over limit`
+                          : `${formatCurrency(
+                            Math.max(item.limit - item.spent, 0)
+                          )} left`}
+                      </span>
+
+                      <span>
+                        {formatCurrency(item.spent)} spent
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+        <section className="section">
+          <div className="section-heading">
+            <h2>Your Goals</h2>
+            <button
+              className="text-btn"
+              onClick={() => setActivePage("goals")}
+            >
+              View all →
+            </button>
+          </div>
+
+          {goals.length === 0 ? (
+            <EmptyState
+              icon="🎯"
+              title="No goals yet"
+              text="Create your first savings goal."
+              action="+ Create Goal"
+              onAction={openNewGoalForm}
+            />
+          ) : (
+            <div className="dashboard-goals">
+              {goals.slice(0, 3).map((goal) => (
+                <GoalCard
+                  key={goal.id}
+                  goal={goal}
+                  compact
+                  onEdit={editGoal}
+                  onDelete={deleteGoal}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="transactions">
+          <div className="section-header">
+            <h2>Recent Transactions</h2>
+            <button onClick={() => setActivePage("activity")}>
+              View all →
+            </button>
+          </div>
+
+          {transactions.length === 0 ? (
+            <EmptyState
+              icon="💸"
+              title="No transactions"
+              text="Add your first transaction."
+              action="+ Add Transaction"
+              onAction={openTransactionForm}
+            />
+          ) : (
+            transactions.slice(0, 5).map((transaction) => (
+              <Transaction
+                key={transaction.id}
+                transaction={transaction}
+                onDelete={deleteTransaction}
+              />
+            ))
+          )}
+        </section>
+      </div>
+    );
+  }
+
+  function ActivityPage() {
+    return (
+      <div className="page-content page">
+        <div className="page-title-row">
+          <div className="page-title">
+            <span>PACE</span>
+            <h2>Activity</h2>
+            <p>All your transactions.</p>
+          </div>
+
+          <button className="goal-add-btn" onClick={openTransactionForm}>
+            + Add
+          </button>
+        </div>
+
+        <div className="activity-toolbar">
+          <div className="search-box">
+            <span>⌕</span>
+            <input
+              value={activitySearch}
+              onChange={(event) => setActivitySearch(event.target.value)}
+              placeholder="Search transactions"
+            />
+          </div>
+
+          <div className="filter-row">
+            <button
+              className={activityType === "all" ? "filter-chip active" : "filter-chip"}
+              onClick={() => setActivityType("all")}
+            >
+              All
+            </button>
+            <button
+              className={
+                activityType === "expense" ? "filter-chip active" : "filter-chip"
+              }
+              onClick={() => setActivityType("expense")}
+            >
+              Expenses
+            </button>
+            <button
+              className={
+                activityType === "income" ? "filter-chip active" : "filter-chip"
+              }
+              onClick={() => setActivityType("income")}
+            >
+              Income
+            </button>
+          </div>
+
+          <select
+            className="activity-category-select"
+            value={activityCategory}
+            onChange={(event) => setActivityCategory(event.target.value)}
+          >
+            <option value="all">All categories</option>
+            {TRANSACTION_CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {groupedTransactions.length === 0 ? (
+          <EmptyState
+            icon="🔎"
+            title="Nothing found"
+            text="Try a different search or filter."
+            action="Clear filters"
+            onAction={() => {
+              setActivitySearch("");
+              setActivityType("all");
+              setActivityCategory("all");
+            }}
+          />
+        ) : (
+          <div className="activity-groups">
+            {groupedTransactions.map(([label, items]) => (
+              <section className="activity-group" key={label}>
+                <div className="activity-group-title">
+                  <span>{label}</span>
+                  {label !== "Today" && label !== "Yesterday" && (
+                    <small>{items.length} transactions</small>
+                  )}
+                </div>
+
+                <div className="transactions activity-list">
+                  {items.map((transaction) => (
+                    <Transaction
+                      key={transaction.id}
+                      transaction={transaction}
+                      onDelete={deleteTransaction}
+                      detailed
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function GoalsPage() {
+    return (
+      <div className="page-content page">
+        <div className="page-title-row">
+          <div className="page-title">
+            <span>PACE</span>
+            <h2>Goals</h2>
+            <p>Save for what matters.</p>
+          </div>
+
+          <button className="goal-add-btn" onClick={openNewGoalForm}>
+            + Goal
+          </button>
+        </div>
+
+        {goals.length === 0 ? (
+          <EmptyState
+            icon="🎯"
+            title="No savings goals"
+            text="Create a goal and start tracking your progress."
+            action="+ Create Goal"
+            onAction={openNewGoalForm}
+          />
+        ) : (
+          <div className="goals-list">
+            {goals.map((goal) => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                onEdit={editGoal}
+                onDelete={deleteGoal}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function BudgetsPage() {
+    return (
+      <div className="page-content page">
+        <div className="page-title">
+          <span>PACE</span>
+          <h2>Budgets</h2>
+          <p>Give every month a spending boundary.</p>
+        </div>
+
+        <form className="budget-card" onSubmit={saveBudgetSettings}>
+          <div>
+            <span className="card-label">MONTHLY BUDGET</span>
+            <h3>{formatCurrency(monthlyBudget)}</h3>
+            <p>
+              {formatCurrency(totalExpenses)} spent ·{" "}
+              {formatCurrency(Math.max(remainingBudget, 0))} left
+            </p>
+          </div>
+
+          <input
+            name="monthlyBudget"
+            type="number"
+            min="1"
+            defaultValue={monthlyBudget}
+            placeholder="₹20,000"
+          />
+
+          <button className="submit-btn" type="submit">
+            Save Monthly Budget
+          </button>
+        </form>
+
+        <section className="budget-section">
+          <div className="section-heading">
+            <h2>Category Budgets</h2>
+            <span className="muted-text">Optional</span>
+          </div>
+
+          <div className="category-budget-list">
+            {TRANSACTION_CATEGORIES.map((category) => {
+              const spent = currentMonthTransactions
+                .filter(
+                  (item) =>
+                    item.type === "expense" && item.category === category
+                )
+                .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+              const limit = Number(categoryBudgets[category] || 0);
+              const progress =
+                limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+
+              return (
+                <div className="category-budget-card" key={category}>
+                  <div className="category-budget-top">
+                    <div>
+                      <span className="category-budget-icon">
+                        {CATEGORY_ICONS[category] || "💳"}
+                      </span>
+                      <div>
+                        <strong>{category}</strong>
+                        <small>{formatCurrency(spent)} spent</small>
+                      </div>
+                    </div>
+
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Set limit"
+                      defaultValue={categoryBudgets[category] ?? ""}
+                      onBlur={(event) =>
+                        updateCategoryBudget(category, event.target.value)
+                      }
+                    />
+                  </div>
+
+                  {limit > 0 && (
+                    <>
+                      <div className="progress small-progress">
+                        <div
+                          className="progress-bar"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <div className="budget-meta">
+                        <span>{progress.toFixed(0)}% used</span>
+                        <span>
+                          {formatCurrency(Math.max(limit - spent, 0))} left
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  function SpendingGuardPage() {
+    const status =
+      overLimitCategories.length > 0
+        ? "Category limit exceeded"
+        : budgetUsed >= guardThreshold
+          ? "Warning active"
+          : nearLimitCategories.length > 0
+            ? "Category limit approaching"
+            : "You're on track";
+
+    return (
+      <div className="page-content page">
+        <div className="page-title">
+          <span>PACE</span>
+          <h2>Spending Guard</h2>
+          <p>Get a warning before spending gets out of hand.</p>
+        </div>
+
+        <div className="guard-card">
+          <div className="guard-ring">
+            <strong>{budgetUsed.toFixed(0)}%</strong>
+            <span>budget used</span>
+          </div>
+
+          <div>
+            <span className="card-label">CURRENT STATUS</span>
+            <h3>{status}</h3>
+            <p>
+              {overLimitCategories.length > 0
+                ? `${overLimitCategories.length} category ${overLimitCategories.length === 1 ? "is" : "are"
+                } over the configured limit.`
+                : budgetUsed >= guardThreshold
+                  ? `You've used ${budgetUsed.toFixed(
+                    0
+                  )}% of your monthly budget.`
+                  : nearLimitCategories.length > 0
+                    ? `${nearLimitCategories[0].category} has reached ${nearLimitCategories[
+                      0
+                    ].percentage.toFixed(0)}% of its limit.`
+                    : "Your spending is currently within the configured limits."}
+            </p>
+          </div>
+        </div>
+
+        {categoryBudgetAlerts.length > 0 && (
+          <div className="guard-alert-list">
+            <div className="section-heading">
+              <h2>Category Status</h2>
             </div>
 
-
-            <form
-              onSubmit={addTransaction}
-            >
-
-              <label>
-                Transaction name
-              </label>
-
-              <input
-                type="text"
-                name="title"
-                placeholder="e.g. Zomato"
-                value={formData.title}
-                onChange={
-                  handleInputChange
-                }
-              />
-
-
-              <label>
-                Amount
-              </label>
-
-              <input
-                type="number"
-                name="amount"
-                min="1"
-                placeholder="₹ 0"
-                value={formData.amount}
-                onChange={
-                  handleInputChange
-                }
-              />
-
-
-              <label>
-                Category
-              </label>
-
-              <select
-                name="category"
-                value={formData.category}
-                onChange={
-                  handleInputChange
-                }
+            {categoryBudgetAlerts.map((item) => (
+              <div
+                className={`guard-category ${item.overLimit ? "over-limit" : ""
+                  }`}
+                key={item.category}
               >
+                <div>
+                  <strong>
+                    {CATEGORY_ICONS[item.category] || "💳"}{" "}
+                    {item.category}
+                  </strong>
 
-                <option value="Food">
-                  Food
-                </option>
+                  <small>
+                    {formatCurrency(item.spent)} /{" "}
+                    {formatCurrency(item.limit)}
+                  </small>
+                </div>
 
-                <option value="Groceries">
-                  Groceries
-                </option>
-
-                <option value="Shopping">
-                  Shopping
-                </option>
-
-                <option value="Travel">
-                  Travel
-                </option>
-
-                <option value="Bills">
-                  Bills
-                </option>
-
-                <option value="Subscriptions">
-                  Subscriptions
-                </option>
-
-                <option value="Health">
-                  Health
-                </option>
-
-                <option value="Other">
-                  Other
-                </option>
-
-              </select>
-
-
-              <label>
-                Type
-              </label>
-
-
-              <div className="type-selector">
-
-                <button
-                  type="button"
-                  className={
-                    formData.type ===
-                      "expense"
-                      ? "selected"
-                      : ""
-                  }
-                  onClick={() =>
-                    setFormData(
-                      (previousData) => ({
-                        ...previousData,
-                        type: "expense",
-                      })
-                    )
-                  }
-                >
-                  Expense
-                </button>
-
-
-                <button
-                  type="button"
-                  className={
-                    formData.type ===
-                      "income"
-                      ? "selected"
-                      : ""
-                  }
-                  onClick={() =>
-                    setFormData(
-                      (previousData) => ({
-                        ...previousData,
-                        type: "income",
-                      })
-                    )
-                  }
-                >
-                  Income
-                </button>
-
+                <span>{item.percentage.toFixed(0)}%</span>
               </div>
+            ))}
+          </div>
+        )}
 
+        <div className="settings-card">
+          <div className="settings-row">
+            <div>
+              <strong>Warning threshold</strong>
+              <small>Choose when PACE should warn you.</small>
+            </div>
 
-              <button
-                className="submit-btn"
-                type="submit"
-              >
-                Add Transaction
-              </button>
+            <select
+              value={guardThreshold}
+              onChange={(event) =>
+                setGuardThreshold(Number(event.target.value))
+              }
+            >
+              <option value="70">70%</option>
+              <option value="80">80%</option>
+              <option value="90">90%</option>
+              <option value="100">100%</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-            </form>
+  function InsightsPage() {
+    return (
+      <div className="page-content page">
+        <div className="page-title">
+          <span>PACE</span>
+          <h2>Insights</h2>
+          <p>A quick read of your current month.</p>
+        </div>
 
+        <div className="insight-grid">
+          <InsightCard
+            title="Top category"
+            value={topCategory[0]}
+            detail={formatCurrency(topCategory[1])}
+          />
+          <InsightCard
+            title="Daily average"
+            value={formatCurrency(averageDailyExpense)}
+            detail="Average expense"
+          />
+          <InsightCard
+            title="Savings rate"
+            value={`${savingsRate.toFixed(0)}%`}
+            detail={formatCurrency(currentSavings)}
+          />
+          <InsightCard
+            title="Transactions"
+            value={currentMonthTransactions.length}
+            detail="This month"
+          />
+        </div>
+
+        <div className="insight-summary">
+          <div className="section-heading">
+            <h2>Month summary</h2>
           </div>
 
+          <div className="summary-row">
+            <span>Total income</span>
+            <strong>{formatCurrency(totalIncome)}</strong>
+          </div>
+
+          <div className="summary-row">
+            <span>Total expenses</span>
+            <strong>{formatCurrency(totalExpenses)}</strong>
+          </div>
+
+          <div className="summary-row">
+            <span>Budget used</span>
+            <strong>{budgetUsed.toFixed(0)}%</strong>
+          </div>
+
+          <div className="summary-row">
+            <span>Largest category</span>
+            <strong>{topCategory[0]}</strong>
+          </div>
         </div>
-      )}
+      </div>
+    );
+  }
 
+  function SettingsPage() {
+    return (
+      <div className="page-content page">
+        <div className="page-title">
+          <span>PACE</span>
+          <h2>Settings</h2>
+          <p>Simple controls for your local V1.</p>
+        </div>
 
-      {/* =========================
-          BOTTOM NAVIGATION
-      ========================== */}
+        <div className="settings-card">
+          <div className="settings-row">
+            <div>
+              <strong>Storage</strong>
+              <small>V1 stores your data in this browser.</small>
+            </div>
+            <span className="status-dot">Local</span>
+          </div>
+
+          <div className="settings-row">
+            <div>
+              <strong>Transactions</strong>
+              <small>{transactions.length} saved transactions</small>
+            </div>
+            <span className="settings-value">↕</span>
+          </div>
+
+          <div className="settings-row">
+            <div>
+              <strong>Goals</strong>
+              <small>{goals.length} saved goals</small>
+            </div>
+            <span className="settings-value">◎</span>
+          </div>
+        </div>
+
+        <div className="danger-card">
+          <div>
+            <strong>Reset demo data</strong>
+            <small>
+              Replaces your current local data with the original PACE V1
+              sample data.
+            </small>
+          </div>
+
+          <button onClick={resetDemoData}>Reset</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app">
+      <main>{renderPage()}</main>
 
       <nav className="bottom-nav">
-
         <NavItem
           icon="⌂"
           label="Home"
-          active={
-            activePage === "Home"
-          }
-          onClick={() =>
-            setActivePage("Home")
-          }
+          active={activePage === "home"}
+          onClick={() => setActivePage("home")}
         />
-
 
         <NavItem
           icon="↕"
           label="Activity"
-          active={
-            activePage === "Activity"
-          }
-          onClick={() =>
-            setActivePage("Activity")
-          }
+          active={activePage === "activity"}
+          onClick={() => setActivePage("activity")}
         />
 
-
-        <button
-          className="add-btn"
-          onClick={() =>
-            setShowForm(true)
-          }
-        >
+        <button className="add-btn" onClick={openTransactionForm}>
           +
         </button>
-
 
         <NavItem
           icon="◎"
           label="Goals"
-          active={
-            activePage === "Goals"
-          }
-          onClick={() =>
-            setActivePage("Goals")
-          }
+          active={activePage === "goals"}
+          onClick={() => setActivePage("goals")}
         />
-
 
         <NavItem
           icon="☰"
           label="More"
-          active={
-            activePage === "More"
-          }
-          onClick={() =>
-            setActivePage("More")
-          }
+          active={activePage === "more"}
+          onClick={() => setActivePage("more")}
         />
-
       </nav>
 
-    </main>
-  );
-}
+      {activePage === "more" && (
+        <div className="more-panel">
+          <button onClick={() => setActivePage("budgets")}>
+            <span>💰 Budgets</span>
+            <span>→</span>
+          </button>
+          <button onClick={() => setActivePage("guard")}>
+            <span>🛡 Spending Guard</span>
+            <span>→</span>
+          </button>
+          <button onClick={() => setActivePage("insights")}>
+            <span>📊 Insights</span>
+            <span>→</span>
+          </button>
+          <button onClick={() => setActivePage("settings")}>
+            <span>⚙️ Settings</span>
+            <span>→</span>
+          </button>
+        </div>
+      )}
 
+      {showForm && (
+        <div className="modal-overlay" onMouseDown={closeTransactionForm}>
+          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <span>PACE</span>
+                <h2>Add Transaction</h2>
+              </div>
 
-/* =============================
-   TRANSACTION COMPONENT
-============================= */
+              <button className="close-btn" onClick={closeTransactionForm}>
+                ×
+              </button>
+            </div>
 
-function Transaction({
-  transaction,
-  onDelete,
-}) {
+            <form onSubmit={addTransaction}>
+              <label>
+                Title
+                <input
+                  type="text"
+                  name="title"
+                  placeholder="e.g. Zomato"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  autoFocus
+                />
+              </label>
 
-  const {
-    id,
-    icon,
-    title,
-    category,
-    amount,
-    type,
-    time,
-  } = transaction;
+              <label>
+                Amount
+                <input
+                  type="number"
+                  name="amount"
+                  placeholder="₹0"
+                  min="1"
+                  step="0.01"
+                  value={formData.amount}
+                  onChange={handleInputChange}
+                />
+              </label>
 
-  return (
-    <div className="transaction">
+              <label>
+                Type
+                <div className="transaction-type-toggle">
+                  <button
+                    type="button"
+                    className={
+                      formData.type === "expense"
+                        ? "type-btn active"
+                        : "type-btn"
+                    }
+                    onClick={() =>
+                      setFormData((previous) => ({
+                        ...previous,
+                        type: "expense",
+                      }))
+                    }
+                  >
+                    Expense
+                  </button>
 
-      <div className="transaction-icon">
-        {icon}
-      </div>
+                  <button
+                    type="button"
+                    className={
+                      formData.type === "income"
+                        ? "type-btn active"
+                        : "type-btn"
+                    }
+                    onClick={() =>
+                      setFormData((previous) => ({
+                        ...previous,
+                        type: "income",
+                      }))
+                    }
+                  >
+                    Income
+                  </button>
+                </div>
+              </label>
 
+              <label>
+                Category
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                >
+                  {TRANSACTION_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-      <div className="transaction-info">
+              <div className="form-row">
+                <label>
+                  Payment
+                  <select
+                    name="paymentMethod"
+                    value={formData.paymentMethod}
+                    onChange={handleInputChange}
+                  >
+                    {PAYMENT_METHODS.map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-        <h3>
-          {title}
-        </h3>
+                <label>
+                  Date
+                  <input
+                    type="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleInputChange}
+                  />
+                </label>
+              </div>
 
-        <p>
-          {category} · {time}
-        </p>
+              <label>
+                Note <span className="optional-label">Optional</span>
+                <input
+                  type="text"
+                  name="note"
+                  placeholder="What was this for?"
+                  value={formData.note}
+                  onChange={handleInputChange}
+                />
+              </label>
 
-      </div>
+              <button className="submit-btn" type="submit">
+                Add Transaction
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
+      {showGoalForm && (
+        <div className="modal-overlay" onMouseDown={closeGoalForm}>
+          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <span>PACE</span>
+                <h2>{editingGoalId !== null ? "Edit Goal" : "New Goal"}</h2>
+              </div>
 
-      <strong
-        className={
-          type === "income"
-            ? "income"
-            : ""
-        }
-      >
+              <button className="close-btn" onClick={closeGoalForm}>
+                ×
+              </button>
+            </div>
 
-        {type === "income"
-          ? "+"
-          : "-"}
+            <form onSubmit={saveGoal}>
+              <label>
+                Goal Name
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="e.g. Emergency Fund"
+                  value={goalForm.name}
+                  onChange={handleGoalInputChange}
+                  autoFocus
+                />
+              </label>
 
-        ₹
-        {Number(amount).toLocaleString(
-          "en-IN"
-        )}
+              <div className="form-row">
+                <label>
+                  Icon
+                  <input
+                    type="text"
+                    name="icon"
+                    placeholder="🎯"
+                    value={goalForm.icon}
+                    onChange={handleGoalInputChange}
+                  />
+                </label>
 
-      </strong>
+                <label>
+                  Category
+                  <select
+                    name="category"
+                    value={goalForm.category}
+                    onChange={handleGoalInputChange}
+                  >
+                    {GOAL_CATEGORIES.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
 
+              <div className="form-row">
+                <label>
+                  Target Amount
+                  <input
+                    type="number"
+                    name="target"
+                    placeholder="₹50,000"
+                    min="1"
+                    value={goalForm.target}
+                    onChange={handleGoalInputChange}
+                  />
+                </label>
 
-      <button
-        className="delete-btn"
-        onClick={() =>
-          onDelete(id)
-        }
-        aria-label="Delete transaction"
-      >
-        ×
-      </button>
+                <label>
+                  Saved Amount
+                  <input
+                    type="number"
+                    name="saved"
+                    placeholder="₹0"
+                    min="0"
+                    value={goalForm.saved}
+                    onChange={handleGoalInputChange}
+                  />
+                </label>
+              </div>
 
+              <label>
+                Target Date
+                <input
+                  type="date"
+                  name="date"
+                  value={goalForm.date}
+                  onChange={handleGoalInputChange}
+                />
+              </label>
+
+              <button className="submit-btn" type="submit">
+                {editingGoalId !== null ? "Save Changes" : "Create Goal"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
+function StatCard({ label, value, hint }) {
+  return (
+    <div className="stat-card">
+      <span>{label}</span>
+      <strong>{formatCurrency(value)}</strong>
+      <small>{hint}</small>
+    </div>
+  );
+}
 
-/* =============================
-   NAV ITEM COMPONENT
-============================= */
+function GoalCard({ goal, compact = false, onEdit, onDelete }) {
+  const progress =
+    Number(goal.target) > 0
+      ? Math.min((Number(goal.saved) / Number(goal.target)) * 100, 100)
+      : 0;
 
-function NavItem({
-  icon,
-  label,
-  active,
-  onClick,
-}) {
+  const remaining = Math.max(
+    Number(goal.target) - Number(goal.saved),
+    0
+  );
 
   return (
-    <button
-      className={`nav-item ${active ? "active" : ""
-        }`}
-      onClick={onClick}
-    >
+    <div className={compact ? "dashboard-goal-card" : "goal-card"}>
+      <div className="goal-card-header">
+        <div className="goal-title">
+          <span className="goal-icon">{goal.icon || "🎯"}</span>
 
-      <span>
-        {icon}
-      </span>
+          <div>
+            <h3>{goal.name}</h3>
+            <small>
+              {goal.category || "Personal"} ·{" "}
+              {goal.date ? formatDate(goal.date) : "No target date"}
+            </small>
+          </div>
+        </div>
 
-      <small>
-        {label}
-      </small>
+        <strong>{progress.toFixed(0)}%</strong>
+      </div>
 
+      <div className="progress-track">
+        <div className="progress-fill" style={{ width: `${progress}%` }} />
+      </div>
+
+      <div className="goal-money">
+        <span>
+          {formatCurrency(goal.saved)} / {formatCurrency(goal.target)}
+        </span>
+        <span>{formatCurrency(remaining)} left</span>
+      </div>
+
+      {!compact && (
+        <div className="goal-actions">
+          <button className="goal-edit" onClick={() => onEdit(goal)}>
+            ✏️ Edit
+          </button>
+          <button className="goal-delete" onClick={() => onDelete(goal.id)}>
+            🗑 Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Transaction({ transaction, onDelete, detailed = false }) {
+  return (
+    <div className="transaction">
+      <div className="transaction-left">
+        <div className="transaction-icon">{transaction.icon || "💳"}</div>
+
+        <div className="transaction-info">
+          <strong>{transaction.title}</strong>
+
+          <small>
+            {transaction.category} · {formatShortDate(transaction.date)}
+            {detailed && transaction.paymentMethod
+              ? ` · ${transaction.paymentMethod}`
+              : ""}
+          </small>
+
+          {detailed && transaction.note && (
+            <p className="transaction-note">{transaction.note}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="transaction-right">
+        <strong className={transaction.type}>
+          {transaction.type === "income" ? "+" : "-"}
+          {formatCurrency(transaction.amount)}
+        </strong>
+
+        <button
+          className="transaction-delete"
+          onClick={() => onDelete(transaction.id)}
+          aria-label={`Delete ${transaction.title}`}
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function InsightCard({ title, value, detail }) {
+  return (
+    <div className="insight-card">
+      <span>{title}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </div>
+  );
+}
+
+function EmptyState({ icon, title, text, action, onAction }) {
+  return (
+    <div className="empty-state">
+      <div>{icon}</div>
+      <h3>{title}</h3>
+      <p>{text}</p>
+      {action && <button onClick={onAction}>{action}</button>}
+    </div>
+  );
+}
+
+function NavItem({ icon, label, active, onClick }) {
+  return (
+    <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>
+      <span>{icon}</span>
+      <small>{label}</small>
     </button>
   );
 }
-
-
-/* =============================
-   EMPTY STATE
-============================= */
-
-function EmptyState() {
-
-  return (
-    <div className="empty-state">
-
-      <div className="empty-icon">
-        +
-      </div>
-
-      <h3>
-        No transactions yet
-      </h3>
-
-      <p>
-        Add your first transaction
-        using the + button.
-      </p>
-
-    </div>
-  );
-}
-
 
 export default App;
