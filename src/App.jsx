@@ -42,6 +42,21 @@ const CATEGORY_ICONS = {
   Other: "💳",
 };
 
+<<<<<<< HEAD
+=======
+function getDemoDate(offsetDays = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() - offsetDays);
+  return toDateKey(date);
+}
+
+function getDemoMonthStart() {
+  const date = new Date();
+  date.setDate(1);
+  return toDateKey(date);
+}
+
+>>>>>>> e044569 (Finalize PACE V1)
 const initialTransactions = [
   {
     id: 1,
@@ -49,7 +64,11 @@ const initialTransactions = [
     category: "Food",
     amount: 320,
     type: "expense",
+<<<<<<< HEAD
     date: "2026-09-25",
+=======
+    date: getDemoDate(0),
+>>>>>>> e044569 (Finalize PACE V1)
     icon: "🍔",
     paymentMethod: "UPI",
     note: "",
@@ -60,7 +79,11 @@ const initialTransactions = [
     category: "Shopping",
     amount: 540,
     type: "expense",
+<<<<<<< HEAD
     date: "2026-09-24",
+=======
+    date: getDemoDate(1),
+>>>>>>> e044569 (Finalize PACE V1)
     icon: "🛒",
     paymentMethod: "UPI",
     note: "",
@@ -71,7 +94,11 @@ const initialTransactions = [
     category: "Food",
     amount: 280,
     type: "expense",
+<<<<<<< HEAD
     date: "2026-09-23",
+=======
+    date: getDemoDate(2),
+>>>>>>> e044569 (Finalize PACE V1)
     icon: "☕",
     paymentMethod: "UPI",
     note: "",
@@ -82,7 +109,11 @@ const initialTransactions = [
     category: "Income",
     amount: 30000,
     type: "income",
+<<<<<<< HEAD
     date: "2026-09-01",
+=======
+    date: getDemoMonthStart(),
+>>>>>>> e044569 (Finalize PACE V1)
     icon: "💰",
     paymentMethod: "Bank Transfer",
     note: "",
@@ -572,6 +603,7 @@ function App() {
 
     if (!confirmed) return;
 
+<<<<<<< HEAD
     // Clear current saved PACE data
     localStorage.removeItem("pace-transactions");
     localStorage.removeItem("pace-goals");
@@ -581,6 +613,36 @@ function App() {
 
     // Reload so useState initializes from demo defaults
     window.location.reload();
+=======
+    const demoTransactions = initialTransactions.map((transaction) => ({
+      ...transaction,
+    }));
+
+    const demoGoals = initialGoals.map((goal) => ({
+      ...goal,
+      category: goal.category || "Personal",
+    }));
+
+    setTransactions(demoTransactions);
+    setGoals(demoGoals);
+    setMonthlyBudget(defaultBudget);
+    setCategoryBudgets({});
+    setGuardThreshold(defaultGuardThreshold);
+
+    setActivitySearch("");
+    setActivityType("all");
+    setActivityCategory("all");
+    setShowForm(false);
+    setShowGoalForm(false);
+    setEditingGoalId(null);
+    setActivePage("home");
+
+    saveLocal("pace-transactions", demoTransactions);
+    saveLocal("pace-goals", demoGoals);
+    saveLocal("pace-monthly-budget", defaultBudget);
+    saveLocal("pace-category-budgets", {});
+    saveLocal("pace-guard-threshold", defaultGuardThreshold);
+>>>>>>> e044569 (Finalize PACE V1)
   }
 
   function saveBudgetSettings(event) {
@@ -1767,4 +1829,8 @@ function NavItem({ icon, label, active, onClick }) {
   );
 }
 
+<<<<<<< HEAD
 export default App;
+=======
+export default App;
+>>>>>>> e044569 (Finalize PACE V1)

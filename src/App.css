@@ -1664,6 +1664,7 @@ select {
   font-weight: 600;
 }
 
+<<<<<<< HEAD
 /* iOS Safari - prevent form focus zoom */
 @media screen and (max-width: 768px) {
 
@@ -1712,6 +1713,13 @@ select {
 /* MOBILE FORM FIX + iOS SAFARI */
 @media screen and (max-width: 768px) {
 
+=======
+/* =================================
+   FINAL MOBILE / IOS SAFARI FIXES
+================================= */
+
+@media screen and (max-width: 768px) {
+>>>>>>> e044569 (Finalize PACE V1)
   .modal input,
   .modal select,
   .modal textarea,
@@ -1724,7 +1732,11 @@ select {
     box-sizing: border-box;
   }
 
+<<<<<<< HEAD
   .form-row {
+=======
+  .modal .form-row {
+>>>>>>> e044569 (Finalize PACE V1)
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 10px;
@@ -1732,18 +1744,37 @@ select {
     min-width: 0;
   }
 
+<<<<<<< HEAD
   .form-row>label {
+=======
+  .modal .form-row > label {
+>>>>>>> e044569 (Finalize PACE V1)
     display: block;
     width: 100%;
     min-width: 0;
   }
 
+<<<<<<< HEAD
   .form-row input,
   .form-row select {
+=======
+  .modal .form-row input,
+  .modal .form-row select {
+>>>>>>> e044569 (Finalize PACE V1)
     display: block;
     width: 100%;
     min-width: 0;
     max-width: 100%;
     box-sizing: border-box;
   }
+<<<<<<< HEAD
 }
+=======
+}
+
+@media screen and (max-width: 360px) {
+  .modal .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+>>>>>>> e044569 (Finalize PACE V1)
