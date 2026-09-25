@@ -1666,9 +1666,84 @@ select {
 
 /* iOS Safari - prevent form focus zoom */
 @media screen and (max-width: 768px) {
+
   .modal input,
   .modal select,
   .modal textarea {
     font-size: 16px !important;
+  }
+}
+
+/* iOS Safari - prevent input zoom */
+@media screen and (max-width: 768px) {
+
+  .modal input,
+  .modal select,
+  .modal textarea,
+  .budget-card input,
+  .category-budget-top input,
+  .activity-category-select,
+  .search-box input {
+    font-size: 16px !important;
+  }
+}
+
+/* Mobile modal form row alignment */
+.form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+
+.form-row>label {
+  min-width: 0;
+  width: 100%;
+}
+
+.form-row input,
+.form-row select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* MOBILE FORM FIX + iOS SAFARI */
+@media screen and (max-width: 768px) {
+
+  .modal input,
+  .modal select,
+  .modal textarea,
+  .budget-card input,
+  .category-budget-top input,
+  .activity-category-select,
+  .search-box input {
+    font-size: 16px !important;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .form-row>label {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .form-row input,
+  .form-row select {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 }

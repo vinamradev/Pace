@@ -566,22 +566,46 @@ function App() {
   }
 
   function resetDemoData() {
-    const confirmed = window.confirm(
-      "Reset PACE to the V1 demo data? Your current local data will be replaced."
-    );
+  const confirmed = window.confirm(
+    "Reset PACE to the V1 demo data? Your current local data will be replaced."
+  );
 
-    if (!confirmed) return;
+  if (!confirmed) return;
 
-    setTransactions(initialTransactions);
-    setGoals(initialGoals);
-    setMonthlyBudget(defaultBudget);
-    setCategoryBudgets({});
-    setGuardThreshold(defaultGuardThreshold);
-    setActivitySearch("");
-    setActivityType("all");
-    setActivityCategory("all");
-    setActivePage("home");
-  }
+  // Reset localStorage immediately
+  localStorage.setItem(
+    "pace-transactions",
+    JSON.stringify(initialTransactions)
+  );
+
+  localStorage.setItem(
+    "pace-goals",
+    JSON.stringify(initialGoals)
+  );
+
+  localStorage.setItem(
+    "pace-monthly-budget",
+    JSON.stringify(defaultBudget)
+  );
+
+  localStorage.setItem(
+    "pace-category-budgets",
+    JSON.stringify({})
+  );
+
+  localStorage.setItem(
+    "pace-guard-threshold",
+    JSON.stringify(defaultGuardThreshold)
+  );
+
+  // Reset filters
+  localStorage.removeItem("pace-activity-search");
+  localStorage.removeItem("pace-activity-type");
+  localStorage.removeItem("pace-activity-category");
+
+  // Reload app from clean demo state
+  window.location.reload();
+}
 
   function saveBudgetSettings(event) {
     event.preventDefault();
