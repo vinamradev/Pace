@@ -566,46 +566,22 @@ function App() {
   }
 
   function resetDemoData() {
-  const confirmed = window.confirm(
-    "Reset PACE to the V1 demo data? Your current local data will be replaced."
-  );
+    const confirmed = window.confirm(
+      "Reset PACE to the V1 demo data? Your current local data will be replaced."
+    );
 
-  if (!confirmed) return;
+    if (!confirmed) return;
 
-  // Reset localStorage immediately
-  localStorage.setItem(
-    "pace-transactions",
-    JSON.stringify(initialTransactions)
-  );
+    // Clear current saved PACE data
+    localStorage.removeItem("pace-transactions");
+    localStorage.removeItem("pace-goals");
+    localStorage.removeItem("pace-monthly-budget");
+    localStorage.removeItem("pace-category-budgets");
+    localStorage.removeItem("pace-guard-threshold");
 
-  localStorage.setItem(
-    "pace-goals",
-    JSON.stringify(initialGoals)
-  );
-
-  localStorage.setItem(
-    "pace-monthly-budget",
-    JSON.stringify(defaultBudget)
-  );
-
-  localStorage.setItem(
-    "pace-category-budgets",
-    JSON.stringify({})
-  );
-
-  localStorage.setItem(
-    "pace-guard-threshold",
-    JSON.stringify(defaultGuardThreshold)
-  );
-
-  // Reset filters
-  localStorage.removeItem("pace-activity-search");
-  localStorage.removeItem("pace-activity-type");
-  localStorage.removeItem("pace-activity-category");
-
-  // Reload app from clean demo state
-  window.location.reload();
-}
+    // Reload so useState initializes from demo defaults
+    window.location.reload();
+  }
 
   function saveBudgetSettings(event) {
     event.preventDefault();
@@ -712,8 +688,8 @@ function App() {
 
         <div
           className={`alert-card ${guardActive || overLimitCategories.length > 0
-              ? "alert-warning"
-              : ""
+            ? "alert-warning"
+            : ""
             }`}
         >
           <div className="alert-icon">
