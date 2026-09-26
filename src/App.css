@@ -2035,6 +2035,176 @@ button {
   margin-bottom: 6px;
 }
 
+.auth-success {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  margin-bottom: 6px;
+}
+
+.auth-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.auth-link-btn {
+  background: none;
+  border: none;
+  color: #34d399;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s ease;
+}
+
+.auth-link-btn:hover {
+  color: #6ee7b7;
+  text-decoration: underline;
+}
+
+.auth-back-link {
+  background: none;
+  border: none;
+  color: #8b8b98;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  transition: color 0.15s ease;
+}
+
+.auth-back-link:hover {
+  color: #ffffff;
+}
+
+.auth-reset-header {
+  margin-bottom: 6px;
+  text-align: left;
+}
+
+.auth-section-title {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.auth-section-desc {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: #8b8b98;
+  line-height: 1.4;
+}
+
+/* Settings Security Card & Change Password */
+.security-card {
+  margin-top: 14px;
+}
+
+.change-password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.change-password-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #a1a1aa;
+}
+
+.change-password-form input {
+  background: #111116;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #ffffff;
+  font-size: 13px;
+  outline: none;
+}
+
+.change-password-form input:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.change-password-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.change-password-actions .cancel-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 8px 14px;
+  color: #a1a1aa;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.change-password-actions .cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.change-password-actions .save-btn {
+  background: #10b981;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 16px;
+  color: #041f14;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.change-password-actions .save-btn:hover {
+  background: #34d399;
+}
+
+.password-status-banner {
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.password-status-banner.error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.password-status-banner.success {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+
 .auth-divider {
   display: flex;
   align-items: center;

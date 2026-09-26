@@ -238,11 +238,17 @@ function AuthScreen({ onLogin, onGuestLogin }) {
   const [signupPassword, setSignupPassword] = useState("");
   const [signupBudget, setSignupBudget] = useState("20000");
 
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+
   const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   function handleLoginSubmit(event) {
     event.preventDefault();
     setError("");
+    setSuccessMsg("");
 
     if (!loginEmail.trim() || !loginPassword) {
       setError("Please fill in your email and password.");
@@ -267,6 +273,7 @@ function AuthScreen({ onLogin, onGuestLogin }) {
   function handleSignupSubmit(event) {
     event.preventDefault();
     setError("");
+    setSuccessMsg("");
 
     const name = signupName.trim();
     const email = signupEmail.trim().toLowerCase();
@@ -314,6 +321,65 @@ function AuthScreen({ onLogin, onGuestLogin }) {
     onLogin(newUser);
   }
 
+  function handleResetPasswordSubmit(event) {
+    event.preventDefault();
+    setError("");
+    setSuccessMsg("");
+
+    const email = forgotEmail.trim().toLowerCase();
+    const newPass = forgotNewPassword;
+    const confirmPass = forgotConfirmPassword;
+
+    if (!email || !newPass || !confirmPass) {
+      setError("Please fill in all fields.");
+      return;
+    }
+
+    if (!email.includes("@") || !email.includes(".")) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    if (newPass.length < 4) {
+      setError("New password must be at least 4 characters long.");
+      return;
+    }
+
+    if (newPass !== confirmPass) {
+      setError("New passwords do not match. Please re-enter.");
+      return;
+    }
+
+    const users = loadLocal("pace_users", []);
+    const userIndex = users.findIndex(
+      (u) => u.email && u.email.toLowerCase() === email
+    );
+
+    if (userIndex === -1) {
+      setError("No account found with this email. Please check your spelling or create an account.");
+      return;
+    }
+
+    const updatedUsers = [...users];
+    updatedUsers[userIndex] = {
+      ...updatedUsers[userIndex],
+      password: newPass,
+    };
+    saveLocal("pace_users", updatedUsers);
+
+    const activeUser = loadLocal("pace_active_user", null);
+    if (activeUser && activeUser.email && activeUser.email.toLowerCase() === email) {
+      saveLocal("pace_active_user", { ...activeUser, password: newPass });
+    }
+
+    setSuccessMsg("Password reset successfully! You can now log in with your new password.");
+    setLoginEmail(email);
+    setLoginPassword("");
+    setForgotNewPassword("");
+    setForgotConfirmPassword("");
+    setTab("login");
+  }
+
   return (
     <div className="auth-page">
       <div className="auth-header">
@@ -332,6 +398,7 @@ function AuthScreen({ onLogin, onGuestLogin }) {
             onClick={() => {
               setTab("login");
               setError("");
+              setSuccessMsg("");
             }}
           >
             Log In
@@ -342,15 +409,25 @@ function AuthScreen({ onLogin, onGuestLogin }) {
             onClick={() => {
               setTab("signup");
               setError("");
+              setSuccessMsg("");
             }}
           >
             Create Account
           </button>
+          {tab === "forgot" && (
+            <button
+              type="button"
+              className="auth-tab active"
+            >
+              Reset Password
+            </button>
+          )}
         </div>
 
+        {successMsg && <div className="auth-success">{successMsg}</div>}
         {error && <div className="auth-error">{error}</div>}
 
-        {tab === "login" ? (
+        {tab === "login" && (
           <form className="auth-form" onSubmit={handleLoginSubmit}>
             <label>
               Email address
@@ -364,7 +441,21 @@ function AuthScreen({ onLogin, onGuestLogin }) {
             </label>
 
             <label>
-              Password
+              <div className="auth-label-row">
+                <span>Password</span>
+                <button
+                  type="button"
+                  className="auth-link-btn"
+                  onClick={() => {
+                    setTab("forgot");
+                    setError("");
+                    setSuccessMsg("");
+                    setForgotEmail(loginEmail);
+                  }}
+                >
+                  Forgot password?
+                </button>
+              </div>
               <input
                 type="password"
                 placeholder="••••••••"
@@ -377,7 +468,9 @@ function AuthScreen({ onLogin, onGuestLogin }) {
               Log In to PACE
             </button>
           </form>
-        ) : (
+        )}
+
+        {tab === "signup" && (
           <form className="auth-form" onSubmit={handleSignupSubmit}>
             <label>
               Your Name
@@ -423,6 +516,63 @@ function AuthScreen({ onLogin, onGuestLogin }) {
 
             <button className="submit-btn" type="submit">
               Create Fresh Account
+            </button>
+          </form>
+        )}
+
+        {tab === "forgot" && (
+          <form className="auth-form" onSubmit={handleResetPasswordSubmit}>
+            <div className="auth-reset-header">
+              <button
+                type="button"
+                className="auth-back-link"
+                onClick={() => {
+                  setTab("login");
+                  setError("");
+                  setSuccessMsg("");
+                }}
+              >
+                ← Back to Log In
+              </button>
+              <h3 className="auth-section-title">Reset Password</h3>
+              <p className="auth-section-desc">
+                Enter your registered account email and set a new password.
+              </p>
+            </div>
+
+            <label>
+              Registered Email
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                autoFocus
+              />
+            </label>
+
+            <label>
+              New Password
+              <input
+                type="password"
+                placeholder="At least 4 characters"
+                value={forgotNewPassword}
+                onChange={(e) => setForgotNewPassword(e.target.value)}
+              />
+            </label>
+
+            <label>
+              Confirm New Password
+              <input
+                type="password"
+                placeholder="Re-enter new password"
+                value={forgotConfirmPassword}
+                onChange={(e) => setForgotConfirmPassword(e.target.value)}
+              />
+            </label>
+
+            <button className="submit-btn" type="submit">
+              Reset & Save Password
             </button>
           </form>
         )}
@@ -1249,7 +1399,63 @@ function SettingsPage({
   onResetAccountData,
   onLoadDemoData,
   onBack,
+  onUpdateUser,
 }) {
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordStatus, setPasswordStatus] = useState({ type: "", msg: "" });
+
+  function handleChangePasswordSubmit(e) {
+    e.preventDefault();
+    setPasswordStatus({ type: "", msg: "" });
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordStatus({ type: "error", msg: "Please fill in all fields." });
+      return;
+    }
+
+    if (currentUser?.password && currentUser.password !== currentPassword) {
+      setPasswordStatus({ type: "error", msg: "Current password is incorrect." });
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      setPasswordStatus({
+        type: "error",
+        msg: "New password must be at least 4 characters long.",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordStatus({ type: "error", msg: "New passwords do not match." });
+      return;
+    }
+
+    const updatedUser = {
+      ...currentUser,
+      password: newPassword,
+    };
+
+    if (onUpdateUser) {
+      onUpdateUser(updatedUser);
+    }
+
+    setPasswordStatus({
+      type: "success",
+      msg: "Password updated successfully!",
+    });
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setTimeout(() => {
+      setShowPasswordForm(false);
+      setPasswordStatus({ type: "", msg: "" });
+    }, 2200);
+  }
+
   return (
     <div className="page-content page">
       <div className="page-title-row">
@@ -1296,6 +1502,97 @@ function SettingsPage({
           <span className="status-dot">Active</span>
         </div>
       </div>
+
+      {currentUser?.id && currentUser.id !== "usr_demo" && currentUser.id !== "guest" && (
+        <div className="settings-card security-card">
+          <div className="settings-row">
+            <div>
+              <strong>Account Security</strong>
+              <small>Change your account password</small>
+            </div>
+            {!showPasswordForm ? (
+              <button
+                className="text-btn"
+                type="button"
+                onClick={() => {
+                  setShowPasswordForm(true);
+                  setPasswordStatus({ type: "", msg: "" });
+                }}
+              >
+                Change Password
+              </button>
+            ) : (
+              <button
+                className="text-btn"
+                type="button"
+                onClick={() => {
+                  setShowPasswordForm(false);
+                  setPasswordStatus({ type: "", msg: "" });
+                }}
+              >
+                Close
+              </button>
+            )}
+          </div>
+
+          {showPasswordForm && (
+            <form className="change-password-form" onSubmit={handleChangePasswordSubmit}>
+              {passwordStatus.msg && (
+                <div className={`password-status-banner ${passwordStatus.type}`}>
+                  {passwordStatus.msg}
+                </div>
+              )}
+
+              <label>
+                Current Password
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  autoFocus
+                />
+              </label>
+
+              <label>
+                New Password
+                <input
+                  type="password"
+                  placeholder="Min 4 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </label>
+
+              <label>
+                Confirm New Password
+                <input
+                  type="password"
+                  placeholder="Re-enter new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </label>
+
+              <div className="change-password-actions">
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={() => {
+                    setShowPasswordForm(false);
+                    setPasswordStatus({ type: "", msg: "" });
+                  }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="save-btn">
+                  Save New Password
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
 
       <div className="danger-card">
         <div>
@@ -1468,6 +1765,14 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
   function handleLogout() {
     saveLocal("pace_active_user", null);
     setCurrentUser(null);
+  }
+
+  function handleUpdateUser(updatedUser) {
+    setCurrentUser(updatedUser);
+    saveLocal("pace_active_user", updatedUser);
+    const users = loadLocal("pace_users", []);
+    const updatedUsers = users.map((u) => (u.id === updatedUser.id ? updatedUser : u));
+    saveLocal("pace_users", updatedUsers);
   }
 
   function handleResetAccountData() {
@@ -1919,6 +2224,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             onResetAccountData={handleResetAccountData}
             onLoadDemoData={handleLoadDemoData}
             onBack={handleBack}
+            onUpdateUser={handleUpdateUser}
           />
         );
       default:
