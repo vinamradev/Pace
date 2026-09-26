@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
+import PaceLogo from "./components/PaceLogo";
 
 const EXPENSE_CATEGORIES = [
   "Food",
@@ -316,6 +317,9 @@ function AuthScreen({ onLogin, onGuestLogin }) {
   return (
     <div className="auth-page">
       <div className="auth-header">
+        <div className="auth-logo-badge">
+          <PaceLogo size={68} variant="tile" />
+        </div>
         <h1 className="logo">PACE</h1>
         <p className="tagline">Spend with intention. Save with purpose.</p>
       </div>
@@ -469,9 +473,12 @@ function HomePage({
   return (
     <div className="page-content">
       <header className="header">
-        <div>
-          <h1 className="logo">PACE</h1>
-          <p className="tagline">Welcome, {currentUser?.name || "Friend"}</p>
+        <div className="brand-group">
+          <PaceLogo size={40} variant="tile" className="brand-logo" />
+          <div className="brand-text">
+            <h1 className="logo">PACE</h1>
+            <p className="tagline">Welcome, {currentUser?.name || "Friend"}</p>
+          </div>
         </div>
 
         <button
@@ -1316,6 +1323,14 @@ function SettingsPage({
       <button className="logout-btn" type="button" onClick={onLogout}>
         Log Out ({currentUser?.name || "Account"})
       </button>
+
+      <div className="app-about-footer">
+        <PaceLogo size={28} variant="tile" />
+        <div>
+          <strong>PACE v1.0</strong>
+          <small>Spend with intention. Save with purpose.</small>
+        </div>
+      </div>
     </div>
   );
 }

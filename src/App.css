@@ -80,18 +80,41 @@ button {
   padding: 2px 0 0;
 }
 
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo {
+  flex-shrink: 0;
+  border-radius: 10px;
+  filter: drop-shadow(0 4px 14px rgba(16, 185, 129, 0.28));
+  transition: transform 0.2s ease;
+}
+
+.brand-group:hover .brand-logo {
+  transform: scale(1.04);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
 .logo {
   margin: 0;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 900;
-  letter-spacing: 5px;
+  letter-spacing: 4px;
   background: linear-gradient(135deg, #ffffff 30%, #a1a1aa 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  line-height: 1.1;
 }
 
 .tagline {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   color: #8b8b98;
   font-size: 12px;
   font-weight: 500;
@@ -1512,6 +1535,33 @@ button {
   border-color: rgba(239, 68, 68, 0.4);
 }
 
+.app-about-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  text-align: left;
+}
+
+.app-about-footer strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #e4e4e7;
+  letter-spacing: 1px;
+}
+
+.app-about-footer small {
+  display: block;
+  font-size: 11px;
+  color: #71717a;
+}
+
 /* ==========================================================================
    EMPTY STATES
    ========================================================================== */
@@ -1857,17 +1907,40 @@ button {
 
 .auth-header {
   text-align: center;
-  margin-bottom: 26px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.auth-logo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  filter: drop-shadow(0 10px 32px rgba(16, 185, 129, 0.36));
+  border-radius: 18px;
+  animation: logoFloat 4s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
 }
 
 .auth-header .logo {
-  font-size: 38px;
+  font-size: 36px;
   font-weight: 900;
   letter-spacing: 6px;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   background: linear-gradient(180deg, #ffffff 30%, #a1a1aa 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  line-height: 1.1;
 }
 
 .auth-header .tagline {
