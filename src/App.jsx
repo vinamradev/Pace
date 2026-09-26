@@ -484,28 +484,35 @@ function HomePage({
       </header>
 
       <section className="safe-card">
-        <p className="eyebrow">SAFE TO SPEND TODAY</p>
+        <div className="safe-badge">
+          <span className="pulse-dot" />
+          <span>SAFE TO SPEND TODAY</span>
+        </div>
         <h2>{formatCurrency(safeToSpendToday)}</h2>
         <p className="safe-text">Based on your remaining monthly budget</p>
 
         <div className="progress">
-          <div className="progress-bar" style={{ width: `${budgetUsed}%` }} />
+          <div
+            className="progress-bar safe-progress-bar"
+            style={{ width: `${budgetUsed}%` }}
+          />
         </div>
 
         <div className="progress-info">
-          <span>Budget used</span>
-          <span>{budgetUsed.toFixed(0)}%</span>
+          <span>Budget used ({budgetUsed.toFixed(0)}%)</span>
+          <span>{formatCurrency(Math.max(remainingBudget, 0))} remaining</span>
         </div>
       </section>
 
       <div className="stats">
-        <StatCard label="Spent" value={totalExpenses} hint="This month" />
-        <StatCard label="Budget" value={monthlyBudget} hint="Monthly limit" />
-        <StatCard label="Income" value={totalIncome} hint="This month" />
+        <StatCard label="Spent" value={totalExpenses} hint="This month" type="spent" />
+        <StatCard label="Budget" value={monthlyBudget} hint="Monthly limit" type="budget" />
+        <StatCard label="Income" value={totalIncome} hint="This month" type="income" />
         <StatCard
           label="Remaining"
           value={Math.max(remainingBudget, 0)}
           hint={remainingBudget < 0 ? "Over budget" : "Budget left"}
+          type={remainingBudget < 0 ? "over" : "remaining"}
         />
       </div>
 
@@ -1898,6 +1905,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             className="modal"
             onMouseDown={(event) => event.stopPropagation()}
           >
+            <div className="modal-handle" />
             <div className="modal-header">
               <div>
                 <span>PACE</span>
@@ -2050,6 +2058,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             className="modal"
             onMouseDown={(event) => event.stopPropagation()}
           >
+            <div className="modal-handle" />
             <div className="modal-header">
               <div>
                 <span>PACE</span>
@@ -2149,9 +2158,9 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
   );
 }
 
-function StatCard({ label, value, hint }) {
+function StatCard({ label, value, hint, type = "default" }) {
   return (
-    <div className="stat-card">
+    <div className={`stat-card stat-${type}`}>
       <span>{label}</span>
       <strong>{formatCurrency(value)}</strong>
       <small>{hint}</small>
