@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import PaceLogo from "./components/PaceLogo";
+import GoogleSignInButton from "./components/GoogleSignInButton";
+import ReceiptScannerModal from "./components/ReceiptScannerModal";
+import StatementImportModal from "./components/StatementImportModal";
+import { checkServerHealth, apiBulkAddTransactions } from "./services/api";
 
 const EXPENSE_CATEGORIES = [
   "Food",
@@ -577,6 +581,36 @@ function AuthScreen({ onLogin, onGuestLogin }) {
           </form>
         )}
 
+        <div className="auth-divider">or continue with</div>
+
+        <GoogleSignInButton
+          onGoogleSuccess={(googleUser) => {
+            const users = loadLocal("pace_users", []);
+            const existing = users.find(
+              (u) => u.email && u.email.toLowerCase() === googleUser.email.toLowerCase()
+            );
+            if (!existing) {
+              const freshUser = {
+                id: googleUser.id || "usr_g_" + Date.now(),
+                name: googleUser.name,
+                email: googleUser.email,
+                picture: googleUser.picture || "",
+                createdAt: toDateKey(),
+              };
+              saveLocal("pace_users", [...users, freshUser]);
+              saveLocal(`pace_${freshUser.id}_transactions`, []);
+              saveLocal(`pace_${freshUser.id}_goals`, []);
+              saveLocal(`pace_${freshUser.id}_monthly-budget`, 20000);
+              saveLocal(`pace_${freshUser.id}_category-budgets`, {});
+              saveLocal(`pace_${freshUser.id}_guard-threshold`, 80);
+              onLogin(freshUser);
+            } else {
+              onLogin(existing);
+            }
+          }}
+          onError={setError}
+        />
+
         <div className="auth-divider">or explore</div>
 
         <button
@@ -617,6 +651,8 @@ function HomePage({
   deleteGoal,
   openTransactionForm,
   deleteTransaction,
+  onOpenOcr,
+  onOpenStatementImport,
 }) {
   const userInitial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "P";
 
@@ -681,6 +717,25 @@ function HomePage({
         </div>
 
         <div className="saving-circle">{savingsRate.toFixed(0)}%</div>
+      </div>
+
+      <div className="quick-action-strip">
+        <button
+          type="button"
+          className="quick-action-strip-btn accent"
+          onClick={onOpenOcr}
+        >
+          <span>📸</span>
+          <span>Scan Bill (OCR)</span>
+        </button>
+        <button
+          type="button"
+          className="quick-action-strip-btn"
+          onClick={onOpenStatementImport}
+        >
+          <span>📑</span>
+          <span>Import Statement</span>
+        </button>
       </div>
 
       <div
@@ -863,6 +918,8 @@ function ActivityPage({
   availableCategories,
   openTransactionForm,
   deleteTransaction,
+  onOpenOcr,
+  onOpenStatementImport,
 }) {
   return (
     <div className="page-content page">
@@ -875,6 +932,25 @@ function ActivityPage({
 
         <button className="goal-add-btn" type="button" onClick={openTransactionForm}>
           + Add
+        </button>
+      </div>
+
+      <div className="quick-action-strip">
+        <button
+          type="button"
+          className="quick-action-strip-btn accent"
+          onClick={onOpenOcr}
+        >
+          <span>📸</span>
+          <span>Scan Bill (OCR)</span>
+        </button>
+        <button
+          type="button"
+          className="quick-action-strip-btn"
+          onClick={onOpenStatementImport}
+        >
+          <span>📑</span>
+          <span>Import Statement</span>
         </button>
       </div>
 
@@ -1012,7 +1088,7 @@ function GoalsPage({ goals, openNewGoalForm, editGoal, deleteGoal }) {
   );
 }
 
-function MorePage({ navigateTo, currentUser }) {
+function MorePage({ navigateTo, currentUser, onOpenOcr, onOpenStatementImport }) {
   return (
     <div className="page-content page">
       <div className="page-title">
@@ -1022,6 +1098,40 @@ function MorePage({ navigateTo, currentUser }) {
       </div>
 
       <div className="more-menu-list">
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={onOpenStatementImport}
+        >
+          <div className="more-menu-left">
+            <span className="more-menu-icon" style={{ background: "rgba(59, 130, 246, 0.12)", color: "#60a5fa" }}>
+              📑
+            </span>
+            <div className="more-menu-text">
+              <strong>Bank & GPay Statement</strong>
+              <small>Auto-import & categorize CSV / SMS statements</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={onOpenOcr}
+        >
+          <div className="more-menu-left">
+            <span className="more-menu-icon" style={{ background: "rgba(236, 72, 153, 0.12)", color: "#f472b6" }}>
+              📸
+            </span>
+            <div className="more-menu-text">
+              <strong>Scan Bill / Receipt (OCR)</strong>
+              <small>Instant optical recognition from bill photo</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
         <button
           className="more-menu-card"
           type="button"
@@ -1406,6 +1516,15 @@ function SettingsPage({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordStatus, setPasswordStatus] = useState({ type: "", msg: "" });
+  const [serverStatus, setServerStatus] = useState(null);
+
+  useEffect(() => {
+    checkServerHealth().then(setServerStatus);
+  }, []);
+
+  function handleCheckServer() {
+    checkServerHealth().then(setServerStatus);
+  }
 
   function handleChangePasswordSubmit(e) {
     e.preventDefault();
@@ -1593,6 +1712,34 @@ function SettingsPage({
           )}
         </div>
       )}
+
+      <div className="settings-card" style={{ marginTop: "14px" }}>
+        <div className="settings-row">
+          <div>
+            <strong>Database & Cloud Sync</strong>
+            <small>
+              {serverStatus?.online && serverStatus?.database?.connected
+                ? "Connected to MongoDB Database"
+                : serverStatus?.online
+                ? "Backend Online (Connecting to MongoDB...)"
+                : "Offline Local DB (Run 'npm run server' for MongoDB)"}
+            </small>
+          </div>
+          <span className={serverStatus?.online && serverStatus?.database?.connected ? "status-dot active" : "status-dot"}>
+            {serverStatus?.online && serverStatus?.database?.connected ? "🟢 MongoDB Active" : "🟡 Local PWA"}
+          </span>
+        </div>
+
+        <div className="settings-row">
+          <div>
+            <strong>Backend API Server</strong>
+            <small>http://localhost:5000/api</small>
+          </div>
+          <button className="text-btn" type="button" onClick={handleCheckServer}>
+            Test Connection
+          </button>
+        </div>
+      </div>
 
       <div className="danger-card">
         <div>
@@ -1963,6 +2110,49 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     setShowForm(false);
   }
 
+  const [showOcrModal, setShowOcrModal] = useState(false);
+  const [showStatementModal, setShowStatementModal] = useState(false);
+
+  function handleApplyOcrTransaction(ocrTx) {
+    const newTx = {
+      id: Date.now(),
+      title: ocrTx.title || "Bill Expense",
+      amount: Number(ocrTx.amount) || 0,
+      type: ocrTx.type || "expense",
+      category: ocrTx.category || "Shopping",
+      date: ocrTx.date || toDateKey(),
+      paymentMethod: ocrTx.paymentMethod || "UPI",
+      note: ocrTx.note || "Scanned via OCR",
+      icon: CATEGORY_ICONS[ocrTx.category] || "💳",
+    };
+    setTransactions((prev) => [newTx, ...prev]);
+    setShowOcrModal(false);
+  }
+
+  function handleImportStatementTransactions(imported) {
+    if (!Array.isArray(imported) || imported.length === 0) return;
+
+    const formatted = imported.map((item) => ({
+      id: "tx_imp_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+      title: item.title,
+      amount: Number(item.amount),
+      type: item.type || "expense",
+      category: item.category || "Other",
+      date: item.date || toDateKey(),
+      paymentMethod: item.paymentMethod || "Bank / GPay",
+      note: item.note || "Imported from Statement",
+      icon: CATEGORY_ICONS[item.category] || "💳",
+    }));
+
+    setTransactions((prev) => [...formatted, ...prev]);
+
+    if (currentUser?.id) {
+      apiBulkAddTransactions(currentUser.id, formatted).catch(() => {});
+    }
+
+    setShowStatementModal(false);
+  }
+
   function addTransaction(event) {
     event.preventDefault();
 
@@ -2157,6 +2347,8 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             availableCategories={availableCategories}
             openTransactionForm={openTransactionForm}
             deleteTransaction={deleteTransaction}
+            onOpenOcr={() => setShowOcrModal(true)}
+            onOpenStatementImport={() => setShowStatementModal(true)}
           />
         );
       case "goals":
@@ -2173,6 +2365,8 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
           <MorePage
             navigateTo={navigateTo}
             currentUser={currentUser}
+            onOpenOcr={() => setShowOcrModal(true)}
+            onOpenStatementImport={() => setShowStatementModal(true)}
           />
         );
       case "budgets":
@@ -2251,6 +2445,8 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             deleteGoal={deleteGoal}
             openTransactionForm={openTransactionForm}
             deleteTransaction={deleteTransaction}
+            onOpenOcr={() => setShowOcrModal(true)}
+            onOpenStatementImport={() => setShowStatementModal(true)}
           />
         );
     }
@@ -2318,6 +2514,33 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             </div>
 
             <form onSubmit={addTransaction}>
+              <button
+                type="button"
+                className="ocr-quick-trigger-btn"
+                onClick={() => {
+                  closeTransactionForm();
+                  setShowOcrModal(true);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  width: "100%",
+                  padding: "10px 14px",
+                  background: "rgba(59, 130, 246, 0.08)",
+                  border: "1px dashed rgba(59, 130, 246, 0.4)",
+                  borderRadius: "10px",
+                  color: "var(--accent-color, #3b82f6)",
+                  fontSize: "0.85rem",
+                  fontWeight: "600",
+                  marginBottom: "14px",
+                  cursor: "pointer",
+                }}
+              >
+                <span>📸</span> Auto-Fill from Receipt / Bill (OCR)
+              </button>
+
               <label>
                 Title
                 <input
@@ -2554,6 +2777,18 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
           </div>
         </div>
       )}
+
+      <ReceiptScannerModal
+        isOpen={showOcrModal}
+        onClose={() => setShowOcrModal(false)}
+        onApplyTransaction={handleApplyOcrTransaction}
+      />
+
+      <StatementImportModal
+        isOpen={showStatementModal}
+        onClose={() => setShowStatementModal(false)}
+        onImportTransactions={handleImportStatementTransactions}
+      />
     </div>
   );
 }
