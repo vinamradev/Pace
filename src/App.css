@@ -55,32 +55,26 @@ button {
   max-width: 460px;
   width: 100%;
   margin: 0 auto;
-  padding-top: max(24px, calc(16px + env(safe-area-inset-top, 0px)));
-  padding-left: max(18px, env(safe-area-inset-left, 0px));
-  padding-right: max(18px, env(safe-area-inset-right, 0px));
-  padding-bottom: calc(96px + env(safe-area-inset-bottom, 16px));
+  padding-top: max(20px, calc(env(safe-area-inset-top, 0px) + 14px));
+  padding-left: max(16px, calc(env(safe-area-inset-left, 0px) + 12px));
+  padding-right: max(16px, calc(env(safe-area-inset-right, 0px) + 12px));
+  padding-bottom: calc(112px + env(safe-area-inset-bottom, 20px));
   background: #09090c;
   border-left: 1px solid rgba(255, 255, 255, 0.04);
   border-right: 1px solid rgba(255, 255, 255, 0.04);
   box-sizing: border-box;
 }
 
-/* iOS status bar, notch & Dynamic Island clearance */
-@supports (-webkit-touch-callout: none) {
-  .app {
-    padding-top: max(60px, calc(16px + env(safe-area-inset-top, 54px)));
-  }
-}
-
 @media all and (display-mode: standalone) {
   .app {
-    padding-top: max(60px, calc(16px + env(safe-area-inset-top, 54px)));
+    padding-top: max(46px, calc(env(safe-area-inset-top, 0px) + 12px));
   }
 }
 
 .page-content {
   width: 100%;
   min-width: 0;
+  padding-bottom: 16px;
   animation: fadeIn 0.25s ease-out;
 }
 
@@ -92,7 +86,8 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 22px;
+  gap: 12px;
+  margin-bottom: 20px;
   padding: 2px 0 0;
 }
 
@@ -100,6 +95,8 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
+  min-width: 0;
 }
 
 .brand-logo {
@@ -116,6 +113,8 @@ button {
 .brand-text {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  flex: 1;
 }
 
 .logo {
@@ -135,9 +134,13 @@ button {
   font-size: 12px;
   font-weight: 500;
   letter-spacing: -0.1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-btn {
+  flex-shrink: 0;
   width: 42px;
   height: 42px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -888,7 +891,7 @@ button {
    ========================================================================== */
 
 .page-title {
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 
 .page-title span {
@@ -913,17 +916,21 @@ button {
 
 .page-title-row {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 22px;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .page-title-row .page-title {
+  flex: 1;
+  min-width: 0;
   margin-bottom: 0;
 }
 
 .goal-add-btn {
+  flex-shrink: 0;
+  margin-top: 2px;
   border: none;
   padding: 9px 15px;
   border-radius: 12px;
@@ -941,6 +948,8 @@ button {
 }
 
 .back-btn {
+  flex-shrink: 0;
+  margin-top: 2px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   background: #141418;
@@ -1105,6 +1114,8 @@ button {
   display: flex;
   align-items: center;
   gap: 14px;
+  flex: 1;
+  min-width: 0;
 }
 
 .more-menu-icon {
@@ -1118,11 +1129,19 @@ button {
   flex-shrink: 0;
 }
 
+.more-menu-text {
+  flex: 1;
+  min-width: 0;
+}
+
 .more-menu-text strong {
   display: block;
   font-size: 14px;
   font-weight: 700;
   color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .more-menu-text small {
@@ -1130,9 +1149,14 @@ button {
   margin-top: 3px;
   color: #8b8b98;
   font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .more-menu-arrow {
+  flex-shrink: 0;
+  margin-left: 10px;
   color: #636372;
   font-size: 16px;
   font-weight: 700;
@@ -1914,41 +1938,48 @@ button {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  padding-top: max(28px, calc(16px + env(safe-area-inset-top, 0px)));
-  padding-bottom: max(28px, calc(16px + env(safe-area-inset-bottom, 16px)));
-  padding-left: max(20px, env(safe-area-inset-left, 0px));
-  padding-right: max(20px, env(safe-area-inset-right, 0px));
-  max-width: 420px;
+  padding-top: max(24px, calc(env(safe-area-inset-top, 0px) + 16px));
+  padding-bottom: max(32px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+  padding-left: max(18px, calc(env(safe-area-inset-left, 0px) + 12px));
+  padding-right: max(18px, calc(env(safe-area-inset-right, 0px) + 12px));
+  max-width: 440px;
+  width: 100%;
   margin: 0 auto;
-}
-
-@supports (-webkit-touch-callout: none) {
-  .auth-page {
-    padding-top: max(60px, calc(16px + env(safe-area-inset-top, 54px)));
-  }
+  box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 @media all and (display-mode: standalone) {
   .auth-page {
-    padding-top: max(60px, calc(16px + env(safe-area-inset-top, 54px)));
+    padding-top: max(48px, calc(env(safe-area-inset-top, 0px) + 16px));
   }
+}
+
+.auth-page::before,
+.auth-page::after {
+  content: "";
+  flex: 1 0 auto;
+  min-height: 0;
 }
 
 .auth-header {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex-shrink: 0;
+  width: 100%;
 }
 
 .auth-logo-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   filter: drop-shadow(0 10px 32px rgba(16, 185, 129, 0.36));
   border-radius: 18px;
   animation: logoFloat 4s ease-in-out infinite;
@@ -1964,7 +1995,7 @@ button {
 }
 
 .auth-header .logo {
-  font-size: 36px;
+  font-size: 34px;
   font-weight: 900;
   letter-spacing: 6px;
   margin: 0 0 6px;
@@ -1982,10 +2013,11 @@ button {
 
 .auth-card {
   width: 100%;
+  flex-shrink: 0;
   background: linear-gradient(160deg, #16161c 0%, #0f0f13 100%);
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 26px;
-  padding: 24px 20px;
+  padding: 22px 18px;
   box-shadow:
     0 24px 60px rgba(0, 0, 0, 0.65),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -2678,32 +2710,68 @@ button {
 
 .statement-action-footer {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 10px;
+  width: 100%;
 }
 
-/* Quick scan / import buttons on Activity and Add Transaction */
+.statement-action-footer .cancel-btn {
+  flex: 0 0 auto;
+  height: 46px;
+  padding: 0 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #a1a1aa;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.statement-action-footer .cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+}
+
+.statement-action-footer .submit-btn {
+  flex: 1;
+  margin-top: 0;
+  height: 46px;
+  font-size: 13px;
+}
+
+/* Quick scan / import buttons on Home, Activity and Add Transaction */
 .quick-action-strip {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-bottom: 16px;
+  width: 100%;
 }
 
 .quick-action-strip-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: 6px;
+  padding: 11px 10px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: 14px;
   color: #ffffff;
   font-size: 12px;
   font-weight: 650;
   cursor: pointer;
+  white-space: nowrap;
+  min-width: 0;
   transition: all 0.2s ease;
+}
+
+.quick-action-strip-btn span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quick-action-strip-btn:hover {
@@ -2720,4 +2788,34 @@ button {
 .quick-action-strip-btn.accent:hover {
   background: rgba(16, 185, 129, 0.18);
   border-color: rgba(16, 185, 129, 0.4);
+}
+
+@media screen and (min-width: 640px) {
+  .modal-overlay {
+    align-items: center;
+    padding: 24px;
+  }
+  .modal {
+    border-radius: 28px;
+    max-height: 85vh;
+  }
+}
+
+@media screen and (max-width: 440px) {
+  .ocr-field-grid {
+    grid-template-columns: 1fr;
+  }
+  .statement-summary-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .statement-select-buttons {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .quick-action-strip-btn {
+    font-size: 11px;
+    padding: 10px 6px;
+  }
 }

@@ -1733,7 +1733,9 @@ function SettingsPage({
         <div className="settings-row">
           <div>
             <strong>Backend API Server</strong>
-            <small>http://localhost:5000/api</small>
+            <small style={{ wordBreak: "break-all" }}>
+              {import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"}
+            </small>
           </div>
           <button className="text-btn" type="button" onClick={handleCheckServer}>
             Test Connection
