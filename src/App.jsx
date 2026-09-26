@@ -224,10 +224,225 @@ function daysLeftInMonth() {
 }
 
 /* ==========================================================================
-   PAGE COMPONENTS (Module-level definitions prevent re-mounting on render)
+   AUTH SCREEN (Login & Create Account)
+   ========================================================================== */
+
+function AuthScreen({ onLogin, onGuestLogin }) {
+  const [tab, setTab] = useState("login");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  const [signupName, setSignupName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupBudget, setSignupBudget] = useState("20000");
+
+  const [error, setError] = useState("");
+
+  function handleLoginSubmit(event) {
+    event.preventDefault();
+    setError("");
+
+    if (!loginEmail.trim() || !loginPassword) {
+      setError("Please fill in your email and password.");
+      return;
+    }
+
+    const users = loadLocal("pace_users", []);
+    const user = users.find(
+      (u) =>
+        u.email.toLowerCase() === loginEmail.trim().toLowerCase() &&
+        u.password === loginPassword
+    );
+
+    if (!user) {
+      setError("Invalid email or password. Please try again or create an account.");
+      return;
+    }
+
+    onLogin(user);
+  }
+
+  function handleSignupSubmit(event) {
+    event.preventDefault();
+    setError("");
+
+    const name = signupName.trim();
+    const email = signupEmail.trim().toLowerCase();
+    const password = signupPassword;
+    const budget = Number(signupBudget) || 20000;
+
+    if (!name || !email || !password) {
+      setError("Please fill in your name, email, and password.");
+      return;
+    }
+
+    if (!email.includes("@") || !email.includes(".")) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    if (password.length < 4) {
+      setError("Password must be at least 4 characters long.");
+      return;
+    }
+
+    const users = loadLocal("pace_users", []);
+    if (users.some((u) => u.email.toLowerCase() === email)) {
+      setError("An account with this email already exists. Please log in.");
+      return;
+    }
+
+    const newUser = {
+      id: "usr_" + Date.now(),
+      name,
+      email,
+      password,
+      createdAt: toDateKey(),
+    };
+
+    saveLocal("pace_users", [...users, newUser]);
+
+    // Initialize clean fresh state for the new user
+    saveLocal(`pace_${newUser.id}_transactions`, []);
+    saveLocal(`pace_${newUser.id}_goals`, []);
+    saveLocal(`pace_${newUser.id}_monthly-budget`, budget);
+    saveLocal(`pace_${newUser.id}_category-budgets`, {});
+    saveLocal(`pace_${newUser.id}_guard-threshold`, 80);
+
+    onLogin(newUser);
+  }
+
+  return (
+    <div className="auth-page">
+      <div className="auth-header">
+        <h1 className="logo">PACE</h1>
+        <p className="tagline">Spend with intention. Save with purpose.</p>
+      </div>
+
+      <div className="auth-card">
+        <div className="auth-tabs">
+          <button
+            type="button"
+            className={`auth-tab ${tab === "login" ? "active" : ""}`}
+            onClick={() => {
+              setTab("login");
+              setError("");
+            }}
+          >
+            Log In
+          </button>
+          <button
+            type="button"
+            className={`auth-tab ${tab === "signup" ? "active" : ""}`}
+            onClick={() => {
+              setTab("signup");
+              setError("");
+            }}
+          >
+            Create Account
+          </button>
+        </div>
+
+        {error && <div className="auth-error">{error}</div>}
+
+        {tab === "login" ? (
+          <form className="auth-form" onSubmit={handleLoginSubmit}>
+            <label>
+              Email address
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                autoFocus
+              />
+            </label>
+
+            <label>
+              Password
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+              />
+            </label>
+
+            <button className="submit-btn" type="submit">
+              Log In to PACE
+            </button>
+          </form>
+        ) : (
+          <form className="auth-form" onSubmit={handleSignupSubmit}>
+            <label>
+              Your Name
+              <input
+                type="text"
+                placeholder="e.g. Vinamra"
+                value={signupName}
+                onChange={(e) => setSignupName(e.target.value)}
+                autoFocus
+              />
+            </label>
+
+            <label>
+              Email address
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={signupEmail}
+                onChange={(e) => setSignupEmail(e.target.value)}
+              />
+            </label>
+
+            <label>
+              Password
+              <input
+                type="password"
+                placeholder="Min 4 characters"
+                value={signupPassword}
+                onChange={(e) => setSignupPassword(e.target.value)}
+              />
+            </label>
+
+            <label>
+              Monthly Spending Budget
+              <input
+                type="number"
+                placeholder="₹20,000"
+                min="1000"
+                value={signupBudget}
+                onChange={(e) => setSignupBudget(e.target.value)}
+              />
+            </label>
+
+            <button className="submit-btn" type="submit">
+              Create Fresh Account
+            </button>
+          </form>
+        )}
+
+        <div className="auth-divider">or explore</div>
+
+        <button
+          type="button"
+          className="guest-btn"
+          onClick={onGuestLogin}
+        >
+          Try Demo Account (Sample Data)
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ==========================================================================
+   PAGE COMPONENTS
    ========================================================================== */
 
 function HomePage({
+  currentUser,
   guardActive,
   budgetUsed,
   safeToSpendToday,
@@ -249,12 +464,14 @@ function HomePage({
   openTransactionForm,
   deleteTransaction,
 }) {
+  const userInitial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "P";
+
   return (
     <div className="page-content">
       <header className="header">
         <div>
           <h1 className="logo">PACE</h1>
-          <p className="tagline">Spend with intention. Save with purpose.</p>
+          <p className="tagline">Welcome, {currentUser?.name || "Friend"}</p>
         </div>
 
         <button
@@ -262,7 +479,7 @@ function HomePage({
           onClick={() => setActivePage("settings")}
           aria-label="Open settings"
         >
-          V
+          {userInitial}
         </button>
       </header>
 
@@ -449,8 +666,8 @@ function HomePage({
         {transactions.length === 0 ? (
           <EmptyState
             icon="💸"
-            title="No transactions"
-            text="Add your first transaction."
+            title="No transactions yet"
+            text="Add your first income or expense transaction."
             action="+ Add Transaction"
             onAction={openTransactionForm}
           />
@@ -551,7 +768,7 @@ function ActivityPage({
         <EmptyState
           icon="🔎"
           title="Nothing found"
-          text="Try a different search or filter."
+          text="Try adding a transaction or adjust your filter."
           action="Clear filters"
           onAction={() => {
             setActivitySearch("");
@@ -924,14 +1141,22 @@ function InsightsPage({
   );
 }
 
-function SettingsPage({ transactions, goals, resetDemoData, setActivePage }) {
+function SettingsPage({
+  currentUser,
+  transactions,
+  goals,
+  onLogout,
+  onResetAccountData,
+  onLoadDemoData,
+  setActivePage,
+}) {
   return (
     <div className="page-content page">
       <div className="page-title-row">
         <div className="page-title">
           <span>PACE</span>
           <h2>Settings</h2>
-          <p>Simple controls for your local V1.</p>
+          <p>Manage your account and preferences.</p>
         </div>
         <button className="back-btn" onClick={() => setActivePage("home")}>
           ← Back
@@ -941,10 +1166,10 @@ function SettingsPage({ transactions, goals, resetDemoData, setActivePage }) {
       <div className="settings-card">
         <div className="settings-row">
           <div>
-            <strong>Storage</strong>
-            <small>V1 stores your data in this browser.</small>
+            <strong>Account</strong>
+            <small>{currentUser?.email || "Guest"}</small>
           </div>
-          <span className="status-dot">Local</span>
+          <span className="status-dot">{currentUser?.name || "User"}</span>
         </div>
 
         <div className="settings-row">
@@ -962,19 +1187,42 @@ function SettingsPage({ transactions, goals, resetDemoData, setActivePage }) {
           </div>
           <span className="settings-value">◎</span>
         </div>
+
+        <div className="settings-row">
+          <div>
+            <strong>Storage</strong>
+            <small>Local offline PWA storage</small>
+          </div>
+          <span className="status-dot">Active</span>
+        </div>
       </div>
 
       <div className="danger-card">
         <div>
-          <strong>Reset demo data</strong>
+          <strong>Reset account data</strong>
           <small>
-            Replaces your current local data with the original PACE V1 sample
-            data.
+            Clears all transactions and goals for this account.
           </small>
         </div>
 
-        <button onClick={resetDemoData}>Reset</button>
+        <button onClick={onResetAccountData}>Clear</button>
       </div>
+
+      <div className="settings-card" style={{ marginTop: "14px" }}>
+        <div className="settings-row">
+          <div>
+            <strong>Demo sample data</strong>
+            <small>Populate sample transactions and goals.</small>
+          </div>
+          <button className="text-btn" onClick={onLoadDemoData}>
+            Load Demo
+          </button>
+        </div>
+      </div>
+
+      <button className="logout-btn" onClick={onLogout}>
+        Log Out ({currentUser?.name || "Account"})
+      </button>
     </div>
   );
 }
@@ -984,27 +1232,73 @@ function SettingsPage({ transactions, goals, resetDemoData, setActivePage }) {
    ========================================================================== */
 
 function App() {
+  const [currentUser, setCurrentUser] = useState(() =>
+    loadLocal("pace_active_user", null)
+  );
+
+  // When logged out, render the AuthScreen
+  if (!currentUser) {
+    return (
+      <AuthScreen
+        onLogin={(user) => {
+          saveLocal("pace_active_user", user);
+          setCurrentUser(user);
+        }}
+        onGuestLogin={() => {
+          const demoUser = {
+            id: "demo",
+            name: "Demo User",
+            email: "demo@pace.app",
+            isDemo: true,
+          };
+          saveLocal("pace_active_user", demoUser);
+
+          if (!localStorage.getItem("pace_usr_demo_transactions")) {
+            saveLocal("pace_usr_demo_transactions", getDemoTransactions());
+            saveLocal("pace_usr_demo_goals", getDemoGoals());
+            saveLocal("pace_usr_demo_monthly-budget", defaultBudget);
+            saveLocal("pace_usr_demo_category-budgets", {});
+            saveLocal("pace_usr_demo_guard-threshold", defaultGuardThreshold);
+          }
+          setCurrentUser(demoUser);
+        }}
+      />
+    );
+  }
+
+  return <AuthenticatedApp currentUser={currentUser} setCurrentUser={setCurrentUser} />;
+}
+
+function AuthenticatedApp({ currentUser, setCurrentUser }) {
+  const userKey = `pace_usr_${currentUser.id}`;
+
   const [transactions, setTransactions] = useState(() =>
-    loadLocal("pace-transactions", getDemoTransactions())
+    loadLocal(
+      `${userKey}_transactions`,
+      currentUser.isDemo ? getDemoTransactions() : []
+    )
   );
 
   const [goals, setGoals] = useState(() =>
-    loadLocal("pace-goals", getDemoGoals()).map((goal) => ({
+    loadLocal(
+      `${userKey}_goals`,
+      currentUser.isDemo ? getDemoGoals() : []
+    ).map((goal) => ({
       ...goal,
       category: goal.category || "Personal",
     }))
   );
 
   const [monthlyBudget, setMonthlyBudget] = useState(() =>
-    Number(loadLocal("pace-monthly-budget", defaultBudget))
+    Number(loadLocal(`${userKey}_monthly-budget`, defaultBudget))
   );
 
   const [categoryBudgets, setCategoryBudgets] = useState(() =>
-    loadLocal("pace-category-budgets", {})
+    loadLocal(`${userKey}_category-budgets`, {})
   );
 
   const [guardThreshold, setGuardThreshold] = useState(() =>
-    Number(loadLocal("pace-guard-threshold", defaultGuardThreshold))
+    Number(loadLocal(`${userKey}_guard-threshold`, defaultGuardThreshold))
   );
 
   const [activePage, setActivePage] = useState("home");
@@ -1035,20 +1329,54 @@ function App() {
   const [activityType, setActivityType] = useState("all");
   const [activityCategory, setActivityCategory] = useState("all");
 
-  useEffect(() => saveLocal("pace-transactions", transactions), [transactions]);
-  useEffect(() => saveLocal("pace-goals", goals), [goals]);
+  useEffect(() => saveLocal(`${userKey}_transactions`, transactions), [userKey, transactions]);
+  useEffect(() => saveLocal(`${userKey}_goals`, goals), [userKey, goals]);
   useEffect(
-    () => saveLocal("pace-monthly-budget", monthlyBudget),
-    [monthlyBudget]
+    () => saveLocal(`${userKey}_monthly-budget`, monthlyBudget),
+    [userKey, monthlyBudget]
   );
   useEffect(
-    () => saveLocal("pace-category-budgets", categoryBudgets),
-    [categoryBudgets]
+    () => saveLocal(`${userKey}_category-budgets`, categoryBudgets),
+    [userKey, categoryBudgets]
   );
   useEffect(
-    () => saveLocal("pace-guard-threshold", guardThreshold),
-    [guardThreshold]
+    () => saveLocal(`${userKey}_guard-threshold`, guardThreshold),
+    [userKey, guardThreshold]
   );
+
+  function handleLogout() {
+    saveLocal("pace_active_user", null);
+    setCurrentUser(null);
+  }
+
+  function handleResetAccountData() {
+    const confirmed = window.confirm(
+      "Reset your account data? All transactions and goals will be cleared."
+    );
+    if (!confirmed) return;
+
+    setTransactions([]);
+    setGoals([]);
+    setCategoryBudgets({});
+    saveLocal(`${userKey}_transactions`, []);
+    saveLocal(`${userKey}_goals`, []);
+    saveLocal(`${userKey}_category-budgets`, {});
+  }
+
+  function handleLoadDemoData() {
+    const demoTx = getDemoTransactions();
+    const demoG = getDemoGoals();
+
+    setTransactions(demoTx);
+    setGoals(demoG);
+    setMonthlyBudget(defaultBudget);
+    setCategoryBudgets({});
+
+    saveLocal(`${userKey}_transactions`, demoTx);
+    saveLocal(`${userKey}_goals`, demoG);
+    saveLocal(`${userKey}_monthly-budget`, defaultBudget);
+    saveLocal(`${userKey}_category-budgets`, {});
+  }
 
   const currentMonthTransactions = useMemo(
     () => transactions.filter((item) => isSameMonth(item.date)),
@@ -1366,37 +1694,6 @@ function App() {
     });
   }
 
-  function resetDemoData() {
-    const confirmed = window.confirm(
-      "Reset PACE to the V1 demo data? Your current local data will be replaced."
-    );
-
-    if (!confirmed) return;
-
-    const demoTransactions = getDemoTransactions();
-    const demoGoals = getDemoGoals();
-
-    setTransactions(demoTransactions);
-    setGoals(demoGoals);
-    setMonthlyBudget(defaultBudget);
-    setCategoryBudgets({});
-    setGuardThreshold(defaultGuardThreshold);
-
-    setActivitySearch("");
-    setActivityType("all");
-    setActivityCategory("all");
-    setShowForm(false);
-    setShowGoalForm(false);
-    setEditingGoalId(null);
-    setActivePage("home");
-
-    saveLocal("pace-transactions", demoTransactions);
-    saveLocal("pace-goals", demoGoals);
-    saveLocal("pace-monthly-budget", defaultBudget);
-    saveLocal("pace-category-budgets", {});
-    saveLocal("pace-guard-threshold", defaultGuardThreshold);
-  }
-
   function saveBudgetSettings(event) {
     event.preventDefault();
 
@@ -1487,15 +1784,19 @@ function App() {
       case "settings":
         return (
           <SettingsPage
+            currentUser={currentUser}
             transactions={transactions}
             goals={goals}
-            resetDemoData={resetDemoData}
+            onLogout={handleLogout}
+            onResetAccountData={handleResetAccountData}
+            onLoadDemoData={handleLoadDemoData}
             setActivePage={setActivePage}
           />
         );
       default:
         return (
           <HomePage
+            currentUser={currentUser}
             guardActive={guardActive}
             budgetUsed={budgetUsed}
             safeToSpendToday={safeToSpendToday}
