@@ -303,7 +303,7 @@ function AuthScreen({ onLogin, onGuestLogin }) {
 
     saveLocal("pace_users", [...users, newUser]);
 
-    // Initialize clean fresh state for the new user
+    // Fresh start for the new user
     saveLocal(`pace_${newUser.id}_transactions`, []);
     saveLocal(`pace_${newUser.id}_goals`, []);
     saveLocal(`pace_${newUser.id}_monthly-budget`, budget);
@@ -397,7 +397,7 @@ function AuthScreen({ onLogin, onGuestLogin }) {
             </label>
 
             <label>
-              Password
+              Create Password
               <input
                 type="password"
                 placeholder="Min 4 characters"
@@ -457,7 +457,7 @@ function HomePage({
   categoryBudgetAlerts,
   goals,
   transactions,
-  setActivePage,
+  navigateTo,
   openNewGoalForm,
   editGoal,
   deleteGoal,
@@ -476,7 +476,8 @@ function HomePage({
 
         <button
           className="profile-btn"
-          onClick={() => setActivePage("settings")}
+          type="button"
+          onClick={() => navigateTo("settings")}
           aria-label="Open settings"
         >
           {userInitial}
@@ -566,7 +567,7 @@ function HomePage({
       <section className="section">
         <div className="section-heading">
           <h2>Category Budgets</h2>
-          <button className="text-btn" onClick={() => setActivePage("budgets")}>
+          <button className="text-btn" type="button" onClick={() => navigateTo("budgets")}>
             Manage →
           </button>
         </div>
@@ -578,7 +579,7 @@ function HomePage({
               <strong>No category limits set</strong>
               <small>Set limits for Food, Shopping, Transport and more.</small>
             </div>
-            <button onClick={() => setActivePage("budgets")}>
+            <button type="button" onClick={() => navigateTo("budgets")}>
               Set limits →
             </button>
           </div>
@@ -636,7 +637,7 @@ function HomePage({
       <section className="section">
         <div className="section-heading">
           <h2>Your Goals</h2>
-          <button className="text-btn" onClick={() => setActivePage("goals")}>
+          <button className="text-btn" type="button" onClick={() => navigateTo("goals")}>
             View all →
           </button>
         </div>
@@ -667,7 +668,7 @@ function HomePage({
       <section className="transactions">
         <div className="section-header">
           <h2>Recent Transactions</h2>
-          <button onClick={() => setActivePage("activity")}>View all →</button>
+          <button type="button" onClick={() => navigateTo("activity")}>View all →</button>
         </div>
 
         {transactions.length === 0 ? (
@@ -715,7 +716,7 @@ function ActivityPage({
           <p>All your transactions.</p>
         </div>
 
-        <button className="goal-add-btn" onClick={openTransactionForm}>
+        <button className="goal-add-btn" type="button" onClick={openTransactionForm}>
           + Add
         </button>
       </div>
@@ -732,6 +733,7 @@ function ActivityPage({
 
         <div className="filter-row">
           <button
+            type="button"
             className={
               activityType === "all" ? "filter-chip active" : "filter-chip"
             }
@@ -740,6 +742,7 @@ function ActivityPage({
             All
           </button>
           <button
+            type="button"
             className={
               activityType === "expense" ? "filter-chip active" : "filter-chip"
             }
@@ -748,6 +751,7 @@ function ActivityPage({
             Expenses
           </button>
           <button
+            type="button"
             className={
               activityType === "income" ? "filter-chip active" : "filter-chip"
             }
@@ -822,7 +826,7 @@ function GoalsPage({ goals, openNewGoalForm, editGoal, deleteGoal }) {
           <p>Save for what matters.</p>
         </div>
 
-        <button className="goal-add-btn" onClick={openNewGoalForm}>
+        <button className="goal-add-btn" type="button" onClick={openNewGoalForm}>
           + Goal
         </button>
       </div>
@@ -851,6 +855,88 @@ function GoalsPage({ goals, openNewGoalForm, editGoal, deleteGoal }) {
   );
 }
 
+function MorePage({ navigateTo, currentUser }) {
+  return (
+    <div className="page-content page">
+      <div className="page-title">
+        <span>PACE</span>
+        <h2>More</h2>
+        <p>Tools, budgets & preferences</p>
+      </div>
+
+      <div className="more-menu-list">
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("budgets")}
+        >
+          <div className="more-menu-left">
+            <span className="more-menu-icon" style={{ background: "rgba(99, 102, 241, 0.12)", color: "#818cf8" }}>
+              💰
+            </span>
+            <div className="more-menu-text">
+              <strong>Category Budgets</strong>
+              <small>Set & track limits for Food, Shopping & more</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("guard")}
+        >
+          <div className="more-menu-left">
+            <span className="more-menu-icon" style={{ background: "rgba(245, 158, 11, 0.12)", color: "#fbbf24" }}>
+              🛡
+            </span>
+            <div className="more-menu-text">
+              <strong>Spending Guard</strong>
+              <small>Real-time budget alerts & safety thresholds</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("insights")}
+        >
+          <div className="more-menu-left">
+            <span className="more-menu-icon" style={{ background: "rgba(6, 182, 212, 0.12)", color: "#38bdf8" }}>
+              📊
+            </span>
+            <div className="more-menu-text">
+              <strong>Monthly Insights</strong>
+              <small>Spending habits, daily averages & trends</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("settings")}
+        >
+          <div className="more-menu-left">
+            <span className="more-menu-icon" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#34d399" }}>
+              ⚙️
+            </span>
+            <div className="more-menu-text">
+              <strong>Account & Settings</strong>
+              <small>{currentUser?.email || "Manage data & account"}</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function BudgetsPage({
   monthlyBudget,
   totalExpenses,
@@ -859,7 +945,7 @@ function BudgetsPage({
   currentMonthTransactions,
   updateCategoryBudget,
   saveBudgetSettings,
-  setActivePage,
+  onBack,
 }) {
   return (
     <div className="page-content page">
@@ -869,7 +955,7 @@ function BudgetsPage({
           <h2>Budgets</h2>
           <p>Give every month a spending boundary.</p>
         </div>
-        <button className="back-btn" onClick={() => setActivePage("home")}>
+        <button className="back-btn" type="button" onClick={onBack}>
           ← Back
         </button>
       </div>
@@ -972,7 +1058,7 @@ function SpendingGuardPage({
   setGuardThreshold,
   nearLimitCategories,
   categoryBudgetAlerts,
-  setActivePage,
+  onBack,
 }) {
   const status =
     overLimitCategories.length > 0
@@ -991,7 +1077,7 @@ function SpendingGuardPage({
           <h2>Spending Guard</h2>
           <p>Get a warning before spending gets out of hand.</p>
         </div>
-        <button className="back-btn" onClick={() => setActivePage("home")}>
+        <button className="back-btn" type="button" onClick={onBack}>
           ← Back
         </button>
       </div>
@@ -1081,7 +1167,7 @@ function InsightsPage({
   totalIncome,
   totalExpenses,
   budgetUsed,
-  setActivePage,
+  onBack,
 }) {
   return (
     <div className="page-content page">
@@ -1091,7 +1177,7 @@ function InsightsPage({
           <h2>Insights</h2>
           <p>A quick read of your current month.</p>
         </div>
-        <button className="back-btn" onClick={() => setActivePage("home")}>
+        <button className="back-btn" type="button" onClick={onBack}>
           ← Back
         </button>
       </div>
@@ -1155,7 +1241,7 @@ function SettingsPage({
   onLogout,
   onResetAccountData,
   onLoadDemoData,
-  setActivePage,
+  onBack,
 }) {
   return (
     <div className="page-content page">
@@ -1165,7 +1251,7 @@ function SettingsPage({
           <h2>Settings</h2>
           <p>Manage your account and preferences.</p>
         </div>
-        <button className="back-btn" onClick={() => setActivePage("home")}>
+        <button className="back-btn" type="button" onClick={onBack}>
           ← Back
         </button>
       </div>
@@ -1212,7 +1298,7 @@ function SettingsPage({
           </small>
         </div>
 
-        <button onClick={onResetAccountData}>Clear</button>
+        <button type="button" onClick={onResetAccountData}>Clear</button>
       </div>
 
       <div className="settings-card" style={{ marginTop: "14px" }}>
@@ -1221,13 +1307,13 @@ function SettingsPage({
             <strong>Demo sample data</strong>
             <small>Populate sample transactions and goals.</small>
           </div>
-          <button className="text-btn" onClick={onLoadDemoData}>
+          <button className="text-btn" type="button" onClick={onLoadDemoData}>
             Load Demo
           </button>
         </div>
       </div>
 
-      <button className="logout-btn" onClick={onLogout}>
+      <button className="logout-btn" type="button" onClick={onLogout}>
         Log Out ({currentUser?.name || "Account"})
       </button>
     </div>
@@ -1309,9 +1395,22 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
   );
 
   const [activePage, setActivePage] = useState("home");
+  const [previousPage, setPreviousPage] = useState("home");
+
   const [showForm, setShowForm] = useState(false);
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState(null);
+
+  function navigateTo(page) {
+    setPreviousPage(activePage);
+    setActivePage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleBack() {
+    setActivePage(previousPage || "home");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   const [formData, setFormData] = useState({
     title: "",
@@ -1749,6 +1848,13 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             deleteGoal={deleteGoal}
           />
         );
+      case "more":
+        return (
+          <MorePage
+            navigateTo={navigateTo}
+            currentUser={currentUser}
+          />
+        );
       case "budgets":
         return (
           <BudgetsPage
@@ -1759,7 +1865,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             currentMonthTransactions={currentMonthTransactions}
             updateCategoryBudget={updateCategoryBudget}
             saveBudgetSettings={saveBudgetSettings}
-            setActivePage={setActivePage}
+            onBack={handleBack}
           />
         );
       case "guard":
@@ -1771,7 +1877,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             setGuardThreshold={setGuardThreshold}
             nearLimitCategories={nearLimitCategories}
             categoryBudgetAlerts={categoryBudgetAlerts}
-            setActivePage={setActivePage}
+            onBack={handleBack}
           />
         );
       case "insights":
@@ -1785,7 +1891,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             totalIncome={totalIncome}
             totalExpenses={totalExpenses}
             budgetUsed={budgetUsed}
-            setActivePage={setActivePage}
+            onBack={handleBack}
           />
         );
       case "settings":
@@ -1797,7 +1903,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             onLogout={handleLogout}
             onResetAccountData={handleResetAccountData}
             onLoadDemoData={handleLoadDemoData}
-            setActivePage={setActivePage}
+            onBack={handleBack}
           />
         );
       default:
@@ -1818,7 +1924,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             categoryBudgetAlerts={categoryBudgetAlerts}
             goals={goals}
             transactions={transactions}
-            setActivePage={setActivePage}
+            navigateTo={navigateTo}
             openNewGoalForm={openNewGoalForm}
             editGoal={editGoal}
             deleteGoal={deleteGoal}
@@ -1838,17 +1944,22 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
           icon="⌂"
           label="Home"
           active={activePage === "home"}
-          onClick={() => setActivePage("home")}
+          onClick={() => navigateTo("home")}
         />
 
         <NavItem
           icon="↕"
           label="Activity"
           active={activePage === "activity"}
-          onClick={() => setActivePage("activity")}
+          onClick={() => navigateTo("activity")}
         />
 
-        <button className="add-btn" onClick={openTransactionForm}>
+        <button
+          className="add-btn"
+          type="button"
+          onClick={openTransactionForm}
+          aria-label="Add transaction"
+        >
           +
         </button>
 
@@ -1856,48 +1967,16 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
           icon="◎"
           label="Goals"
           active={activePage === "goals"}
-          onClick={() => setActivePage("goals")}
+          onClick={() => navigateTo("goals")}
         />
 
         <NavItem
           icon="☰"
           label="More"
-          active={
-            activePage === "more" ||
-            ["budgets", "guard", "insights", "settings"].includes(activePage)
-          }
-          onClick={() =>
-            setActivePage((prev) => (prev === "more" ? "home" : "more"))
-          }
+          active={["more", "budgets", "guard", "insights", "settings"].includes(activePage)}
+          onClick={() => navigateTo("more")}
         />
       </nav>
-
-      {activePage === "more" && (
-        <>
-          <div
-            className="more-backdrop"
-            onClick={() => setActivePage("home")}
-          />
-          <div className="more-panel">
-            <button onClick={() => setActivePage("budgets")}>
-              <span>💰 Budgets</span>
-              <span>→</span>
-            </button>
-            <button onClick={() => setActivePage("guard")}>
-              <span>🛡 Spending Guard</span>
-              <span>→</span>
-            </button>
-            <button onClick={() => setActivePage("insights")}>
-              <span>📊 Insights</span>
-              <span>→</span>
-            </button>
-            <button onClick={() => setActivePage("settings")}>
-              <span>⚙️ Settings</span>
-              <span>→</span>
-            </button>
-          </div>
-        </>
-      )}
 
       {showForm && (
         <div className="modal-overlay" onMouseDown={closeTransactionForm}>
@@ -1912,7 +1991,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
                 <h2>Add Transaction</h2>
               </div>
 
-              <button className="close-btn" onClick={closeTransactionForm}>
+              <button className="close-btn" type="button" onClick={closeTransactionForm}>
                 ×
               </button>
             </div>
@@ -2065,7 +2144,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
                 <h2>{editingGoalId !== null ? "Edit Goal" : "New Goal"}</h2>
               </div>
 
-              <button className="close-btn" onClick={closeGoalForm}>
+              <button className="close-btn" type="button" onClick={closeGoalForm}>
                 ×
               </button>
             </div>
@@ -2207,10 +2286,10 @@ function GoalCard({ goal, compact = false, onEdit, onDelete }) {
 
       {!compact && (
         <div className="goal-actions">
-          <button className="goal-edit" onClick={() => onEdit(goal)}>
+          <button className="goal-edit" type="button" onClick={() => onEdit(goal)}>
             ✏️ Edit
           </button>
-          <button className="goal-delete" onClick={() => onDelete(goal.id)}>
+          <button className="goal-delete" type="button" onClick={() => onDelete(goal.id)}>
             🗑 Delete
           </button>
         </div>
@@ -2249,6 +2328,7 @@ function Transaction({ transaction, onDelete, detailed = false }) {
 
         <button
           className="transaction-delete"
+          type="button"
           onClick={() => onDelete(transaction.id)}
           aria-label={`Delete ${transaction.title}`}
         >
@@ -2275,14 +2355,18 @@ function EmptyState({ icon, title, text, action, onAction }) {
       <div>{icon}</div>
       <h3>{title}</h3>
       <p>{text}</p>
-      {action && <button onClick={onAction}>{action}</button>}
+      {action && <button type="button" onClick={onAction}>{action}</button>}
     </div>
   );
 }
 
 function NavItem({ icon, label, active, onClick }) {
   return (
-    <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>
+    <button
+      className={`nav-item ${active ? "active" : ""}`}
+      type="button"
+      onClick={onClick}
+    >
       <span>{icon}</span>
       <small>{label}</small>
     </button>
