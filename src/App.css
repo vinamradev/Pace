@@ -2741,11 +2741,126 @@ button {
   font-size: 13px;
 }
 
-/* Quick scan / import buttons on Home, Activity and Add Transaction */
+/* Quick Scan & Import Cards (Home & Activity) */
+.home-tools-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+  margin-bottom: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.home-tool-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 13px;
+  background: linear-gradient(145deg, #15151c, #0f0f14);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  color: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.home-tool-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.16);
+  background: linear-gradient(145deg, #1b1b24, #121218);
+}
+
+.home-tool-card:active {
+  transform: scale(0.98);
+}
+
+.home-tool-card.ocr {
+  border-color: rgba(236, 72, 153, 0.2);
+}
+
+.home-tool-card.ocr:hover {
+  border-color: rgba(236, 72, 153, 0.45);
+}
+
+.home-tool-card.stmt {
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.home-tool-card.stmt:hover {
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.home-tool-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.home-tool-card.ocr .home-tool-icon {
+  background: rgba(236, 72, 153, 0.12);
+  color: #f472b6;
+}
+
+.home-tool-card.stmt .home-tool-icon {
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+}
+
+.home-tool-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-tool-content strong {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-tool-content small {
+  display: block;
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: #8b8b98;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-tool-arrow {
+  color: #52525b;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.home-tool-card:hover .home-tool-arrow {
+  color: #ffffff;
+  transform: translateX(2px);
+}
+
+/* Quick scan / import buttons fallback */
 .quick-action-strip {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
+  margin-top: 14px;
   margin-bottom: 16px;
   width: 100%;
 }
@@ -2802,6 +2917,10 @@ button {
 }
 
 @media screen and (max-width: 440px) {
+  .home-tools-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
   .ocr-field-grid {
     grid-template-columns: 1fr;
   }

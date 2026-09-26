@@ -719,22 +719,31 @@ function HomePage({
         <div className="saving-circle">{savingsRate.toFixed(0)}%</div>
       </div>
 
-      <div className="quick-action-strip">
+      <div className="home-tools-grid">
         <button
           type="button"
-          className="quick-action-strip-btn accent"
+          className="home-tool-card ocr"
           onClick={onOpenOcr}
         >
-          <span>📸</span>
-          <span>Scan Bill (OCR)</span>
+          <div className="home-tool-icon">📸</div>
+          <div className="home-tool-content">
+            <strong>Scan Bill (OCR)</strong>
+            <small>Extract from bill photo</small>
+          </div>
+          <span className="home-tool-arrow">→</span>
         </button>
+
         <button
           type="button"
-          className="quick-action-strip-btn"
+          className="home-tool-card stmt"
           onClick={onOpenStatementImport}
         >
-          <span>📑</span>
-          <span>Import Statement</span>
+          <div className="home-tool-icon">📑</div>
+          <div className="home-tool-content">
+            <strong>Bank / GPay</strong>
+            <small>Import CSV & SMS</small>
+          </div>
+          <span className="home-tool-arrow">→</span>
         </button>
       </div>
 
@@ -935,22 +944,31 @@ function ActivityPage({
         </button>
       </div>
 
-      <div className="quick-action-strip">
+      <div className="home-tools-grid">
         <button
           type="button"
-          className="quick-action-strip-btn accent"
+          className="home-tool-card ocr"
           onClick={onOpenOcr}
         >
-          <span>📸</span>
-          <span>Scan Bill (OCR)</span>
+          <div className="home-tool-icon">📸</div>
+          <div className="home-tool-content">
+            <strong>Scan Bill (OCR)</strong>
+            <small>Extract from bill photo</small>
+          </div>
+          <span className="home-tool-arrow">→</span>
         </button>
+
         <button
           type="button"
-          className="quick-action-strip-btn"
+          className="home-tool-card stmt"
           onClick={onOpenStatementImport}
         >
-          <span>📑</span>
-          <span>Import Statement</span>
+          <div className="home-tool-icon">📑</div>
+          <div className="home-tool-content">
+            <strong>Bank / GPay</strong>
+            <small>Import CSV & SMS</small>
+          </div>
+          <span className="home-tool-arrow">→</span>
         </button>
       </div>
 
