@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { parseCSVStatement, parseRawTextStatement } from "../utils/statementParser";
+import { extractDataFromFile } from "../utils/fileExtractor";
+import { parseUniversalStatement } from "../utils/statementParser";
 
 const CATEGORIES = [
   "Food",
@@ -21,44 +22,58 @@ export default function StatementImportModal({ isOpen, onClose, onImportTransact
   const [pastedText, setPastedText] = useState("");
   const [parsedRows, setParsedRows] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [progressInfo, setProgressInfo] = useState({ status: "", progress: 0 });
   const [error, setError] = useState("");
+  const [activeFileName, setActiveFileName] = useState("");
 
   if (!isOpen) return null;
 
-  function handleFileUpload(e) {
+  async function handleFileUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setError("");
+    setActiveFileName(file.name);
     setIsProcessing(true);
+    setProgressInfo({ status: "Reading file...", progress: 0.1 });
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const content = event.target?.result || "";
-        const transactions = parseCSVStatement(content);
+    try {
+      const extracted = await extractDataFromFile(file, (p) => {
+        setProgressInfo(p);
+      });
 
-        if (transactions.length === 0) {
-          setError("No valid transactions found in this file. Please verify it's a CSV statement.");
-        } else {
-          setParsedRows(transactions);
-        }
-      } catch (err) {
-        setError("Error parsing statement file: " + err.message);
-      } finally {
-        setIsProcessing(false);
+      setProgressInfo({ status: "Auto-categorizing transactions...", progress: 0.95 });
+
+      const transactions = parseUniversalStatement(extracted.data, extracted.type);
+
+      if (!transactions || transactions.length === 0) {
+        setError(
+          "No transactions could be parsed from this file. If it's a PDF bank statement, check if it's password-protected or try uploading an Excel (.xlsx) export or transaction screenshot."
+        );
+      } else {
+        setParsedRows(transactions);
       }
-    };
-    reader.onerror = () => {
-      setError("Failed to read file.");
+    } catch (err) {
+      console.error("Statement parse failed:", err);
+      const msg = err.message || "";
+      if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("encrypted")) {
+        setError(
+          "This PDF statement is password-protected. Please remove the password (or print/save to a new PDF) and re-upload, or upload an Excel (.xlsx) export."
+        );
+      } else {
+        setError("Error processing file: " + (err.message || "Unknown error"));
+      }
+    } finally {
       setIsProcessing(false);
-    };
-    reader.readAsText(file);
+      setProgressInfo({ status: "", progress: 0 });
+      // Clear input so same file can be selected again if needed
+      e.target.value = "";
+    }
   }
 
   function handlePastedSubmit() {
     if (!pastedText.trim()) {
-      setError("Please paste your bank or UPI statement text.");
+      setError("Please paste your bank statement rows or UPI SMS text.");
       return;
     }
 
@@ -66,9 +81,11 @@ export default function StatementImportModal({ isOpen, onClose, onImportTransact
     setIsProcessing(true);
 
     try {
-      const transactions = parseRawTextStatement(pastedText);
+      const transactions = parseUniversalStatement(pastedText, "paste");
       if (transactions.length === 0) {
-        setError("Could not parse any transactions from the text. Check the format or paste CSV rows.");
+        setError(
+          "Could not detect transactions from the pasted text. Please verify format (e.g. 24/09/2026, Swiggy, 450, Dr)."
+        );
       } else {
         setParsedRows(transactions);
       }
@@ -111,6 +128,8 @@ export default function StatementImportModal({ isOpen, onClose, onImportTransact
     setPastedText("");
     setError("");
     setIsProcessing(false);
+    setProgressInfo({ status: "", progress: 0 });
+    setActiveFileName("");
     onClose();
   }
 
@@ -145,7 +164,7 @@ export default function StatementImportModal({ isOpen, onClose, onImportTransact
                 className={`auth-tab ${tab === "file" ? "active" : ""}`}
                 onClick={() => setTab("file")}
               >
-                Upload File (.csv)
+                Upload Statement / Screenshot
               </button>
               <button
                 type="button"
@@ -158,23 +177,68 @@ export default function StatementImportModal({ isOpen, onClose, onImportTransact
 
             {error && <div className="auth-error">{error}</div>}
 
-            {tab === "file" ? (
-              <div className="ocr-upload-area">
-                <input
-                  type="file"
-                  id="statement-csv-input"
-                  accept=".csv,.txt"
-                  onChange={handleFileUpload}
-                  style={{ display: "none" }}
-                />
-                <label htmlFor="statement-csv-input" className="ocr-dropzone">
-                  <div className="ocr-icon">📄</div>
-                  <strong>Upload GPay / Bank Statement CSV</strong>
-                  <p>Supports Google Pay, PhonePe, Paytm, HDFC, SBI, ICICI, Axis, Kotak exports</p>
-                  <span className="upload-browse-btn">Choose CSV File</span>
-                </label>
+            {isProcessing && (
+              <div className="import-progress-box">
+                <div className="spinner" style={{ margin: "0 auto 10px" }} />
+                <strong>{progressInfo.status || "Analyzing file..."}</strong>
+                <div className="import-progress-bar">
+                  <div
+                    className="import-progress-fill"
+                    style={{ width: `${Math.round((progressInfo.progress || 0.2) * 100)}%` }}
+                  />
+                </div>
+                <small style={{ color: "#71717a" }}>
+                  {activeFileName ? `File: ${activeFileName}` : "Processing..."}
+                </small>
               </div>
-            ) : (
+            )}
+
+            {!isProcessing && tab === "file" && (
+              <div>
+                <div className="ocr-upload-area">
+                  <input
+                    type="file"
+                    id="statement-file-input"
+                    accept=".pdf,.xlsx,.xls,.csv,.txt,image/*"
+                    onChange={handleFileUpload}
+                    style={{ display: "none" }}
+                  />
+                  <label htmlFor="statement-file-input" className="ocr-dropzone">
+                    <div className="ocr-icon">📂</div>
+                    <strong>Upload Statement or Screenshot</strong>
+                    <p>
+                      Directly import Bank PDFs, Excel sheets, CSVs, or GPay/PhonePe/Paytm screenshots
+                    </p>
+                    <span className="upload-browse-btn">Choose File or Image</span>
+                  </label>
+                </div>
+
+                <div className="format-badges-grid">
+                  <div className="format-badge">
+                    <span className="format-badge-icon">📄</span>
+                    <strong>Bank PDF</strong>
+                    <small>HDFC, SBI, ICICI, Axis</small>
+                  </div>
+                  <div className="format-badge">
+                    <span className="format-badge-icon">📊</span>
+                    <strong>Excel / CSV</strong>
+                    <small>.xlsx, .xls, .csv</small>
+                  </div>
+                  <div className="format-badge">
+                    <span className="format-badge-icon">📱</span>
+                    <strong>GPay Screen</strong>
+                    <small>History screenshots</small>
+                  </div>
+                  <div className="format-badge">
+                    <span className="format-badge-icon">⚡</span>
+                    <strong>PhonePe / Paytm</strong>
+                    <small>UPI payment images</small>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!isProcessing && tab === "paste" && (
               <div className="statement-paste-box">
                 <textarea
                   rows={8}
@@ -194,7 +258,7 @@ export default function StatementImportModal({ isOpen, onClose, onImportTransact
                   onClick={handlePastedSubmit}
                   disabled={isProcessing}
                 >
-                  {isProcessing ? "Parsing..." : "Parse & Auto-Categorize"}
+                  Parse & Auto-Categorize
                 </button>
               </div>
             )}
@@ -205,8 +269,8 @@ export default function StatementImportModal({ isOpen, onClose, onImportTransact
               <div>
                 <strong>{parsedRows.length} Transactions Detected</strong>
                 <small>
-                  Selected: {selectedCount} | Expenses: ₹{totalExpense.toLocaleString()}
-                  {totalIncome > 0 && ` | Income: ₹${totalIncome.toLocaleString()}`}
+                  Selected: {selectedCount} | Expenses: ₹{totalExpense.toLocaleString("en-IN")}
+                  {totalIncome > 0 && ` | Income: ₹${totalIncome.toLocaleString("en-IN")}`}
                 </small>
               </div>
               <div className="statement-select-buttons">
@@ -247,7 +311,7 @@ export default function StatementImportModal({ isOpen, onClose, onImportTransact
                       <div className="statement-row-title">
                         <strong>{row.title}</strong>
                         <span className={`statement-amt ${row.type}`}>
-                          {row.type === "income" ? "+" : "-"}₹{row.amount.toLocaleString()}
+                          {row.type === "income" ? "+" : "-"}₹{row.amount.toLocaleString("en-IN")}
                         </span>
                       </div>
                       <div className="statement-row-meta">

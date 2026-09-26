@@ -741,7 +741,7 @@ function HomePage({
           <div className="home-tool-icon">📑</div>
           <div className="home-tool-content">
             <strong>Bank / GPay</strong>
-            <small>Import CSV & SMS</small>
+            <small>PDF, Excel, Screen</small>
           </div>
           <span className="home-tool-arrow">→</span>
         </button>
@@ -966,7 +966,7 @@ function ActivityPage({
           <div className="home-tool-icon">📑</div>
           <div className="home-tool-content">
             <strong>Bank / GPay</strong>
-            <small>Import CSV & SMS</small>
+            <small>PDF, Excel, Screen</small>
           </div>
           <span className="home-tool-arrow">→</span>
         </button>
@@ -1127,7 +1127,7 @@ function MorePage({ navigateTo, currentUser, onOpenOcr, onOpenStatementImport })
             </span>
             <div className="more-menu-text">
               <strong>Bank & GPay Statement</strong>
-              <small>Auto-import & categorize CSV / SMS statements</small>
+              <small>Auto-import PDF, Excel, Screenshots & SMS</small>
             </div>
           </div>
           <span className="more-menu-arrow">→</span>
