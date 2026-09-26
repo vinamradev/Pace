@@ -1,12 +1,14 @@
-html {
-  background: #080808;
-}
-
+html,
 body {
+  background: #09090c;
+  margin: 0;
+  padding: 0;
   min-width: 320px;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
 }
