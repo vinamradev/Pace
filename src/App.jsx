@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
-const TRANSACTION_CATEGORIES = [
+const EXPENSE_CATEGORIES = [
   "Food",
   "Shopping",
   "Transport",
@@ -10,6 +10,16 @@ const TRANSACTION_CATEGORIES = [
   "Health",
   "Education",
   "Subscriptions",
+  "Other",
+];
+
+const INCOME_CATEGORIES = [
+  "Income",
+  "Salary",
+  "Freelance",
+  "Investment",
+  "Business",
+  "Gift",
   "Other",
 ];
 
@@ -40,10 +50,21 @@ const CATEGORY_ICONS = {
   Education: "📚",
   Subscriptions: "🔁",
   Other: "💳",
+  Salary: "💰",
+  Income: "💰",
+  Freelance: "💻",
+  Investment: "📈",
+  Business: "💼",
+  Gift: "🎁",
 };
 
-<<<<<<< HEAD
-=======
+function toDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function getDemoDate(offsetDays = 0) {
   const date = new Date();
   date.setDate(date.getDate() - offsetDays);
@@ -56,90 +77,77 @@ function getDemoMonthStart() {
   return toDateKey(date);
 }
 
->>>>>>> e044569 (Finalize PACE V1)
-const initialTransactions = [
-  {
-    id: 1,
-    title: "Zomato",
-    category: "Food",
-    amount: 320,
-    type: "expense",
-<<<<<<< HEAD
-    date: "2026-09-25",
-=======
-    date: getDemoDate(0),
->>>>>>> e044569 (Finalize PACE V1)
-    icon: "🍔",
-    paymentMethod: "UPI",
-    note: "",
-  },
-  {
-    id: 2,
-    title: "Blinkit",
-    category: "Shopping",
-    amount: 540,
-    type: "expense",
-<<<<<<< HEAD
-    date: "2026-09-24",
-=======
-    date: getDemoDate(1),
->>>>>>> e044569 (Finalize PACE V1)
-    icon: "🛒",
-    paymentMethod: "UPI",
-    note: "",
-  },
-  {
-    id: 3,
-    title: "Starbucks",
-    category: "Food",
-    amount: 280,
-    type: "expense",
-<<<<<<< HEAD
-    date: "2026-09-23",
-=======
-    date: getDemoDate(2),
->>>>>>> e044569 (Finalize PACE V1)
-    icon: "☕",
-    paymentMethod: "UPI",
-    note: "",
-  },
-  {
-    id: 4,
-    title: "Salary",
-    category: "Income",
-    amount: 30000,
-    type: "income",
-<<<<<<< HEAD
-    date: "2026-09-01",
-=======
-    date: getDemoMonthStart(),
->>>>>>> e044569 (Finalize PACE V1)
-    icon: "💰",
-    paymentMethod: "Bank Transfer",
-    note: "",
-  },
-];
+function getDemoTransactions() {
+  return [
+    {
+      id: 1,
+      title: "Zomato",
+      category: "Food",
+      amount: 320,
+      type: "expense",
+      date: getDemoDate(0),
+      icon: "🍔",
+      paymentMethod: "UPI",
+      note: "",
+    },
+    {
+      id: 2,
+      title: "Blinkit",
+      category: "Shopping",
+      amount: 540,
+      type: "expense",
+      date: getDemoDate(1),
+      icon: "🛒",
+      paymentMethod: "UPI",
+      note: "",
+    },
+    {
+      id: 3,
+      title: "Starbucks",
+      category: "Food",
+      amount: 280,
+      type: "expense",
+      date: getDemoDate(2),
+      icon: "☕",
+      paymentMethod: "UPI",
+      note: "",
+    },
+    {
+      id: 4,
+      title: "Salary",
+      category: "Income",
+      amount: 30000,
+      type: "income",
+      date: getDemoMonthStart(),
+      icon: "💰",
+      paymentMethod: "Bank Transfer",
+      note: "",
+    },
+  ];
+}
 
-const initialGoals = [
-  {
-    id: 1,
-    name: "Emergency Fund",
-    icon: "🚨",
-    category: "Emergency",
-    target: 50000,
-    saved: 15000,
-    date: "2026-12-31",
-  },
-  {
-    id: 2,
-    name: "Travel",
-    icon: "✈️",
-    category: "Travel",
-    target: 30000,
-    saved: 8000,
-    date: "2027-03-31",
-  },
-];
+function getDemoGoals() {
+  return [
+    {
+      id: 1,
+      name: "Emergency Fund",
+      icon: "🚨",
+      category: "Emergency",
+      target: 50000,
+      saved: 15000,
+      date: "2026-12-31",
+    },
+    {
+      id: 2,
+      name: "Travel",
+      icon: "✈️",
+      category: "Travel",
+      target: 30000,
+      saved: 8000,
+      date: "2027-03-31",
+    },
+  ];
+}
 
 const defaultBudget = 20000;
 const defaultGuardThreshold = 80;
@@ -163,13 +171,6 @@ function saveLocal(key, value) {
 
 function formatCurrency(value) {
   return `₹${Number(value || 0).toLocaleString("en-IN")}`;
-}
-
-function toDateKey(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 function isSameMonth(dateString, reference = new Date()) {
@@ -222,13 +223,773 @@ function daysLeftInMonth() {
   return Math.max(lastDay - now.getDate() + 1, 1);
 }
 
+/* ==========================================================================
+   PAGE COMPONENTS (Module-level definitions prevent re-mounting on render)
+   ========================================================================== */
+
+function HomePage({
+  guardActive,
+  budgetUsed,
+  safeToSpendToday,
+  totalExpenses,
+  monthlyBudget,
+  totalIncome,
+  remainingBudget,
+  currentSavings,
+  savingsRate,
+  overLimitCategories,
+  nearLimitCategories,
+  categoryBudgetAlerts,
+  goals,
+  transactions,
+  setActivePage,
+  openNewGoalForm,
+  editGoal,
+  deleteGoal,
+  openTransactionForm,
+  deleteTransaction,
+}) {
+  return (
+    <div className="page-content">
+      <header className="header">
+        <div>
+          <h1 className="logo">PACE</h1>
+          <p className="tagline">Spend with intention. Save with purpose.</p>
+        </div>
+
+        <button
+          className="profile-btn"
+          onClick={() => setActivePage("settings")}
+          aria-label="Open settings"
+        >
+          V
+        </button>
+      </header>
+
+      <section className="safe-card">
+        <p className="eyebrow">SAFE TO SPEND TODAY</p>
+        <h2>{formatCurrency(safeToSpendToday)}</h2>
+        <p className="safe-text">Based on your remaining monthly budget</p>
+
+        <div className="progress">
+          <div className="progress-bar" style={{ width: `${budgetUsed}%` }} />
+        </div>
+
+        <div className="progress-info">
+          <span>Budget used</span>
+          <span>{budgetUsed.toFixed(0)}%</span>
+        </div>
+      </section>
+
+      <div className="stats">
+        <StatCard label="Spent" value={totalExpenses} hint="This month" />
+        <StatCard label="Budget" value={monthlyBudget} hint="Monthly limit" />
+        <StatCard label="Income" value={totalIncome} hint="This month" />
+        <StatCard
+          label="Remaining"
+          value={Math.max(remainingBudget, 0)}
+          hint={remainingBudget < 0 ? "Over budget" : "Budget left"}
+        />
+      </div>
+
+      <div className="saving-card">
+        <div>
+          <span>Current savings</span>
+          <strong>{formatCurrency(currentSavings)}</strong>
+        </div>
+
+        <div className="saving-circle">{savingsRate.toFixed(0)}%</div>
+      </div>
+
+      <div
+        className={`alert-card ${
+          guardActive || overLimitCategories.length > 0 ? "alert-warning" : ""
+        }`}
+      >
+        <div className="alert-icon">
+          {overLimitCategories.length > 0 || guardActive ? "!" : "✓"}
+        </div>
+
+        <div>
+          <h3>
+            {overLimitCategories.length > 0
+              ? `${overLimitCategories[0].category} budget exceeded`
+              : guardActive
+              ? "Budget warning"
+              : "You're on track"}
+          </h3>
+
+          <p>
+            {overLimitCategories.length > 0
+              ? `${formatCurrency(
+                  overLimitCategories[0].spent
+                )} spent against a ${formatCurrency(
+                  overLimitCategories[0].limit
+                )} limit.`
+              : guardActive
+              ? `You've used ${budgetUsed.toFixed(0)}% of your monthly budget.`
+              : nearLimitCategories.length > 0
+              ? `${nearLimitCategories[0].category} is at ${nearLimitCategories[0].percentage.toFixed(
+                  0
+                )}% of its limit.`
+              : `You have ${formatCurrency(
+                  Math.max(remainingBudget, 0)
+                )} left in your monthly budget.`}
+          </p>
+        </div>
+      </div>
+
+      <section className="section">
+        <div className="section-heading">
+          <h2>Category Budgets</h2>
+          <button className="text-btn" onClick={() => setActivePage("budgets")}>
+            Manage →
+          </button>
+        </div>
+
+        {categoryBudgetAlerts.length === 0 ? (
+          <div className="category-budget-empty">
+            <span>💰</span>
+            <div>
+              <strong>No category limits set</strong>
+              <small>Set limits for Food, Shopping, Transport and more.</small>
+            </div>
+            <button onClick={() => setActivePage("budgets")}>
+              Set limits →
+            </button>
+          </div>
+        ) : (
+          <div className="dashboard-category-budgets">
+            {categoryBudgetAlerts.map((item) => {
+              const percentage = item.percentage;
+              const progress = Math.min(percentage, 100);
+
+              return (
+                <div
+                  className={`dashboard-category-budget ${
+                    item.overLimit ? "over-budget" : ""
+                  }`}
+                  key={item.category}
+                >
+                  <div className="dashboard-category-top">
+                    <div className="dashboard-category-name">
+                      <span>{CATEGORY_ICONS[item.category] || "💳"}</span>
+                      <div>
+                        <strong>{item.category}</strong>
+                        <small>
+                          {formatCurrency(item.spent)} spent of{" "}
+                          {formatCurrency(item.limit)}
+                        </small>
+                      </div>
+                    </div>
+                    <strong>{percentage.toFixed(0)}%</strong>
+                  </div>
+
+                  <div className="progress">
+                    <div
+                      className="progress-bar"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+
+                  <div className="dashboard-category-bottom">
+                    <span>
+                      {item.overLimit
+                        ? `${formatCurrency(item.spent - item.limit)} over limit`
+                        : `${formatCurrency(
+                            Math.max(item.limit - item.spent, 0)
+                          )} left`}
+                    </span>
+                    <span>{formatCurrency(item.spent)} spent</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="section">
+        <div className="section-heading">
+          <h2>Your Goals</h2>
+          <button className="text-btn" onClick={() => setActivePage("goals")}>
+            View all →
+          </button>
+        </div>
+
+        {goals.length === 0 ? (
+          <EmptyState
+            icon="🎯"
+            title="No goals yet"
+            text="Create your first savings goal."
+            action="+ Create Goal"
+            onAction={openNewGoalForm}
+          />
+        ) : (
+          <div className="dashboard-goals">
+            {goals.slice(0, 3).map((goal) => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                compact
+                onEdit={editGoal}
+                onDelete={deleteGoal}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="transactions">
+        <div className="section-header">
+          <h2>Recent Transactions</h2>
+          <button onClick={() => setActivePage("activity")}>View all →</button>
+        </div>
+
+        {transactions.length === 0 ? (
+          <EmptyState
+            icon="💸"
+            title="No transactions"
+            text="Add your first transaction."
+            action="+ Add Transaction"
+            onAction={openTransactionForm}
+          />
+        ) : (
+          transactions
+            .slice(0, 5)
+            .map((transaction) => (
+              <Transaction
+                key={transaction.id}
+                transaction={transaction}
+                onDelete={deleteTransaction}
+              />
+            ))
+        )}
+      </section>
+    </div>
+  );
+}
+
+function ActivityPage({
+  activitySearch,
+  setActivitySearch,
+  activityType,
+  setActivityType,
+  activityCategory,
+  setActivityCategory,
+  groupedTransactions,
+  availableCategories,
+  openTransactionForm,
+  deleteTransaction,
+}) {
+  return (
+    <div className="page-content page">
+      <div className="page-title-row">
+        <div className="page-title">
+          <span>PACE</span>
+          <h2>Activity</h2>
+          <p>All your transactions.</p>
+        </div>
+
+        <button className="goal-add-btn" onClick={openTransactionForm}>
+          + Add
+        </button>
+      </div>
+
+      <div className="activity-toolbar">
+        <div className="search-box">
+          <span>⌕</span>
+          <input
+            value={activitySearch}
+            onChange={(event) => setActivitySearch(event.target.value)}
+            placeholder="Search transactions"
+          />
+        </div>
+
+        <div className="filter-row">
+          <button
+            className={
+              activityType === "all" ? "filter-chip active" : "filter-chip"
+            }
+            onClick={() => setActivityType("all")}
+          >
+            All
+          </button>
+          <button
+            className={
+              activityType === "expense" ? "filter-chip active" : "filter-chip"
+            }
+            onClick={() => setActivityType("expense")}
+          >
+            Expenses
+          </button>
+          <button
+            className={
+              activityType === "income" ? "filter-chip active" : "filter-chip"
+            }
+            onClick={() => setActivityType("income")}
+          >
+            Income
+          </button>
+        </div>
+
+        <select
+          className="activity-category-select"
+          value={activityCategory}
+          onChange={(event) => setActivityCategory(event.target.value)}
+        >
+          <option value="all">All categories</option>
+          {availableCategories.map((category) => (
+            <option key={category} value={category}>
+              {category}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {groupedTransactions.length === 0 ? (
+        <EmptyState
+          icon="🔎"
+          title="Nothing found"
+          text="Try a different search or filter."
+          action="Clear filters"
+          onAction={() => {
+            setActivitySearch("");
+            setActivityType("all");
+            setActivityCategory("all");
+          }}
+        />
+      ) : (
+        <div className="activity-groups">
+          {groupedTransactions.map(([label, items]) => (
+            <section className="activity-group" key={label}>
+              <div className="activity-group-title">
+                <span>{label}</span>
+                {label !== "Today" && label !== "Yesterday" && (
+                  <small>{items.length} transactions</small>
+                )}
+              </div>
+
+              <div className="transactions activity-list">
+                {items.map((transaction) => (
+                  <Transaction
+                    key={transaction.id}
+                    transaction={transaction}
+                    onDelete={deleteTransaction}
+                    detailed
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GoalsPage({ goals, openNewGoalForm, editGoal, deleteGoal }) {
+  return (
+    <div className="page-content page">
+      <div className="page-title-row">
+        <div className="page-title">
+          <span>PACE</span>
+          <h2>Goals</h2>
+          <p>Save for what matters.</p>
+        </div>
+
+        <button className="goal-add-btn" onClick={openNewGoalForm}>
+          + Goal
+        </button>
+      </div>
+
+      {goals.length === 0 ? (
+        <EmptyState
+          icon="🎯"
+          title="No savings goals"
+          text="Create a goal and start tracking your progress."
+          action="+ Create Goal"
+          onAction={openNewGoalForm}
+        />
+      ) : (
+        <div className="goals-list">
+          {goals.map((goal) => (
+            <GoalCard
+              key={goal.id}
+              goal={goal}
+              onEdit={editGoal}
+              onDelete={deleteGoal}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BudgetsPage({
+  monthlyBudget,
+  totalExpenses,
+  remainingBudget,
+  categoryBudgets,
+  currentMonthTransactions,
+  updateCategoryBudget,
+  saveBudgetSettings,
+  setActivePage,
+}) {
+  return (
+    <div className="page-content page">
+      <div className="page-title-row">
+        <div className="page-title">
+          <span>PACE</span>
+          <h2>Budgets</h2>
+          <p>Give every month a spending boundary.</p>
+        </div>
+        <button className="back-btn" onClick={() => setActivePage("home")}>
+          ← Back
+        </button>
+      </div>
+
+      <form className="budget-card" onSubmit={saveBudgetSettings}>
+        <div>
+          <span className="card-label">MONTHLY BUDGET</span>
+          <h3>{formatCurrency(monthlyBudget)}</h3>
+          <p>
+            {formatCurrency(totalExpenses)} spent ·{" "}
+            {formatCurrency(Math.max(remainingBudget, 0))} left
+          </p>
+        </div>
+
+        <input
+          name="monthlyBudget"
+          type="number"
+          min="1"
+          key={`budget-${monthlyBudget}`}
+          defaultValue={monthlyBudget}
+          placeholder="₹20,000"
+        />
+
+        <button className="submit-btn" type="submit">
+          Save Monthly Budget
+        </button>
+      </form>
+
+      <section className="budget-section">
+        <div className="section-heading">
+          <h2>Category Budgets</h2>
+          <span className="muted-text">Optional</span>
+        </div>
+
+        <div className="category-budget-list">
+          {EXPENSE_CATEGORIES.map((category) => {
+            const spent = currentMonthTransactions
+              .filter(
+                (item) => item.type === "expense" && item.category === category
+              )
+              .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+            const limit = Number(categoryBudgets[category] || 0);
+            const progress =
+              limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+
+            return (
+              <div className="category-budget-card" key={category}>
+                <div className="category-budget-top">
+                  <div>
+                    <span className="category-budget-icon">
+                      {CATEGORY_ICONS[category] || "💳"}
+                    </span>
+                    <div>
+                      <strong>{category}</strong>
+                      <small>{formatCurrency(spent)} spent</small>
+                    </div>
+                  </div>
+
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Set limit"
+                    value={categoryBudgets[category] ?? ""}
+                    onChange={(event) =>
+                      updateCategoryBudget(category, event.target.value)
+                    }
+                  />
+                </div>
+
+                {limit > 0 && (
+                  <>
+                    <div className="progress small-progress">
+                      <div
+                        className="progress-bar"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <div className="budget-meta">
+                      <span>{progress.toFixed(0)}% used</span>
+                      <span>
+                        {formatCurrency(Math.max(limit - spent, 0))} left
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function SpendingGuardPage({
+  overLimitCategories,
+  budgetUsed,
+  guardThreshold,
+  setGuardThreshold,
+  nearLimitCategories,
+  categoryBudgetAlerts,
+  setActivePage,
+}) {
+  const status =
+    overLimitCategories.length > 0
+      ? "Category limit exceeded"
+      : budgetUsed >= guardThreshold
+      ? "Warning active"
+      : nearLimitCategories.length > 0
+      ? "Category limit approaching"
+      : "You're on track";
+
+  return (
+    <div className="page-content page">
+      <div className="page-title-row">
+        <div className="page-title">
+          <span>PACE</span>
+          <h2>Spending Guard</h2>
+          <p>Get a warning before spending gets out of hand.</p>
+        </div>
+        <button className="back-btn" onClick={() => setActivePage("home")}>
+          ← Back
+        </button>
+      </div>
+
+      <div className="guard-card">
+        <div className="guard-ring">
+          <strong>{budgetUsed.toFixed(0)}%</strong>
+          <span>budget used</span>
+        </div>
+
+        <div>
+          <span className="card-label">CURRENT STATUS</span>
+          <h3>{status}</h3>
+          <p>
+            {overLimitCategories.length > 0
+              ? `${overLimitCategories.length} category ${
+                  overLimitCategories.length === 1 ? "is" : "are"
+                } over the configured limit.`
+              : budgetUsed >= guardThreshold
+              ? `You've used ${budgetUsed.toFixed(0)}% of your monthly budget.`
+              : nearLimitCategories.length > 0
+              ? `${nearLimitCategories[0].category} has reached ${nearLimitCategories[0].percentage.toFixed(
+                  0
+                )}% of its limit.`
+              : "Your spending is currently within the configured limits."}
+          </p>
+        </div>
+      </div>
+
+      {categoryBudgetAlerts.length > 0 && (
+        <div className="guard-alert-list">
+          <div className="section-heading">
+            <h2>Category Status</h2>
+          </div>
+
+          {categoryBudgetAlerts.map((item) => (
+            <div
+              className={`guard-category ${
+                item.overLimit ? "over-limit" : ""
+              }`}
+              key={item.category}
+            >
+              <div>
+                <strong>
+                  {CATEGORY_ICONS[item.category] || "💳"} {item.category}
+                </strong>
+
+                <small>
+                  {formatCurrency(item.spent)} / {formatCurrency(item.limit)}
+                </small>
+              </div>
+
+              <span>{item.percentage.toFixed(0)}%</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="settings-card">
+        <div className="settings-row">
+          <div>
+            <strong>Warning threshold</strong>
+            <small>Choose when PACE should warn you.</small>
+          </div>
+
+          <select
+            value={guardThreshold}
+            onChange={(event) => setGuardThreshold(Number(event.target.value))}
+          >
+            <option value="70">70%</option>
+            <option value="80">80%</option>
+            <option value="90">90%</option>
+            <option value="100">100%</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InsightsPage({
+  topCategory,
+  averageDailyExpense,
+  savingsRate,
+  currentSavings,
+  currentMonthTransactions,
+  totalIncome,
+  totalExpenses,
+  budgetUsed,
+  setActivePage,
+}) {
+  return (
+    <div className="page-content page">
+      <div className="page-title-row">
+        <div className="page-title">
+          <span>PACE</span>
+          <h2>Insights</h2>
+          <p>A quick read of your current month.</p>
+        </div>
+        <button className="back-btn" onClick={() => setActivePage("home")}>
+          ← Back
+        </button>
+      </div>
+
+      <div className="insight-grid">
+        <InsightCard
+          title="Top category"
+          value={topCategory[0]}
+          detail={formatCurrency(topCategory[1])}
+        />
+        <InsightCard
+          title="Daily average"
+          value={formatCurrency(averageDailyExpense)}
+          detail="Average expense"
+        />
+        <InsightCard
+          title="Savings rate"
+          value={`${savingsRate.toFixed(0)}%`}
+          detail={formatCurrency(currentSavings)}
+        />
+        <InsightCard
+          title="Transactions"
+          value={currentMonthTransactions.length}
+          detail="This month"
+        />
+      </div>
+
+      <div className="insight-summary">
+        <div className="section-heading">
+          <h2>Month summary</h2>
+        </div>
+
+        <div className="summary-row">
+          <span>Total income</span>
+          <strong>{formatCurrency(totalIncome)}</strong>
+        </div>
+
+        <div className="summary-row">
+          <span>Total expenses</span>
+          <strong>{formatCurrency(totalExpenses)}</strong>
+        </div>
+
+        <div className="summary-row">
+          <span>Budget used</span>
+          <strong>{budgetUsed.toFixed(0)}%</strong>
+        </div>
+
+        <div className="summary-row">
+          <span>Largest category</span>
+          <strong>{topCategory[0]}</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsPage({ transactions, goals, resetDemoData, setActivePage }) {
+  return (
+    <div className="page-content page">
+      <div className="page-title-row">
+        <div className="page-title">
+          <span>PACE</span>
+          <h2>Settings</h2>
+          <p>Simple controls for your local V1.</p>
+        </div>
+        <button className="back-btn" onClick={() => setActivePage("home")}>
+          ← Back
+        </button>
+      </div>
+
+      <div className="settings-card">
+        <div className="settings-row">
+          <div>
+            <strong>Storage</strong>
+            <small>V1 stores your data in this browser.</small>
+          </div>
+          <span className="status-dot">Local</span>
+        </div>
+
+        <div className="settings-row">
+          <div>
+            <strong>Transactions</strong>
+            <small>{transactions.length} saved transactions</small>
+          </div>
+          <span className="settings-value">↕</span>
+        </div>
+
+        <div className="settings-row">
+          <div>
+            <strong>Goals</strong>
+            <small>{goals.length} saved goals</small>
+          </div>
+          <span className="settings-value">◎</span>
+        </div>
+      </div>
+
+      <div className="danger-card">
+        <div>
+          <strong>Reset demo data</strong>
+          <small>
+            Replaces your current local data with the original PACE V1 sample
+            data.
+          </small>
+        </div>
+
+        <button onClick={resetDemoData}>Reset</button>
+      </div>
+    </div>
+  );
+}
+
+/* ==========================================================================
+   MAIN APP CONTAINER
+   ========================================================================== */
+
 function App() {
   const [transactions, setTransactions] = useState(() =>
-    loadLocal("pace-transactions", initialTransactions)
+    loadLocal("pace-transactions", getDemoTransactions())
   );
 
   const [goals, setGoals] = useState(() =>
-    loadLocal("pace-goals", initialGoals).map((goal) => ({
+    loadLocal("pace-goals", getDemoGoals()).map((goal) => ({
       ...goal,
       category: goal.category || "Personal",
     }))
@@ -312,9 +1073,7 @@ function App() {
 
   const remainingBudget = monthlyBudget - totalExpenses;
   const budgetUsed =
-    monthlyBudget > 0
-      ? Math.min((totalExpenses / monthlyBudget) * 100, 100)
-      : 0;
+    monthlyBudget > 0 ? Math.min((totalExpenses / monthlyBudget) * 100, 100) : 0;
 
   const safeToSpendToday =
     remainingBudget > 0
@@ -345,34 +1104,28 @@ function App() {
     totalExpenses > 0 ? Math.round(totalExpenses / new Date().getDate()) : 0;
 
   const categoryBudgetAlerts = useMemo(() => {
-    return TRANSACTION_CATEGORIES
-      .map((category) => {
-        const limit = Number(categoryBudgets[category] || 0);
+    return EXPENSE_CATEGORIES.map((category) => {
+      const limit = Number(categoryBudgets[category] || 0);
 
-        if (limit <= 0) return null;
+      if (limit <= 0) return null;
 
-        const spent = currentMonthTransactions
-          .filter(
-            (transaction) =>
-              transaction.type === "expense" &&
-              transaction.category === category
-          )
-          .reduce(
-            (sum, transaction) => sum + Number(transaction.amount || 0),
-            0
-          );
+      const spent = currentMonthTransactions
+        .filter(
+          (transaction) =>
+            transaction.type === "expense" && transaction.category === category
+        )
+        .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
 
-        const percentage = (spent / limit) * 100;
+      const percentage = (spent / limit) * 100;
 
-        return {
-          category,
-          limit,
-          spent,
-          percentage,
-          overLimit: percentage >= 100,
-        };
-      })
-      .filter(Boolean);
+      return {
+        category,
+        limit,
+        spent,
+        percentage,
+        overLimit: percentage >= 100,
+      };
+    }).filter(Boolean);
   }, [categoryBudgets, currentMonthTransactions]);
 
   const overLimitCategories = categoryBudgetAlerts.filter(
@@ -382,6 +1135,17 @@ function App() {
   const nearLimitCategories = categoryBudgetAlerts.filter(
     (item) => item.percentage >= 80 && !item.overLimit
   );
+
+  const availableCategories = useMemo(() => {
+    if (activityType === "expense") return EXPENSE_CATEGORIES;
+    if (activityType === "income") return INCOME_CATEGORIES;
+
+    const set = new Set([...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES]);
+    transactions.forEach((tx) => {
+      if (tx.category) set.add(tx.category);
+    });
+    return Array.from(set);
+  }, [activityType, transactions]);
 
   const filteredTransactions = useMemo(() => {
     const query = activitySearch.trim().toLowerCase();
@@ -448,7 +1212,11 @@ function App() {
   function addTransaction(event) {
     event.preventDefault();
 
-    if (!formData.title.trim() || !formData.amount || Number(formData.amount) <= 0) {
+    if (
+      !formData.title.trim() ||
+      !formData.amount ||
+      Number(formData.amount) <= 0
+    ) {
       return;
     }
 
@@ -463,7 +1231,7 @@ function App() {
       date: formData.date || toDateKey(),
       icon:
         formData.type === "income"
-          ? "💰"
+          ? CATEGORY_ICONS[formData.category] || "💰"
           : CATEGORY_ICONS[formData.category] || "💳",
       paymentMethod: formData.paymentMethod,
       note: formData.note.trim(),
@@ -515,14 +1283,14 @@ function App() {
         previous.map((goal) =>
           goal.id === editingGoalId
             ? {
-              ...goal,
-              name: goalForm.name.trim(),
-              icon: goalForm.icon || "🎯",
-              category: goalForm.category || "Personal",
-              target,
-              saved,
-              date: goalForm.date,
-            }
+                ...goal,
+                name: goalForm.name.trim(),
+                icon: goalForm.icon || "🎯",
+                category: goalForm.category || "Personal",
+                target,
+                saved,
+                date: goalForm.date,
+              }
             : goal
         )
       );
@@ -560,7 +1328,9 @@ function App() {
   }
 
   function deleteGoal(id) {
-    const confirmed = window.confirm("Are you sure you want to delete this goal?");
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this goal?"
+    );
 
     if (!confirmed) return;
 
@@ -603,25 +1373,8 @@ function App() {
 
     if (!confirmed) return;
 
-<<<<<<< HEAD
-    // Clear current saved PACE data
-    localStorage.removeItem("pace-transactions");
-    localStorage.removeItem("pace-goals");
-    localStorage.removeItem("pace-monthly-budget");
-    localStorage.removeItem("pace-category-budgets");
-    localStorage.removeItem("pace-guard-threshold");
-
-    // Reload so useState initializes from demo defaults
-    window.location.reload();
-=======
-    const demoTransactions = initialTransactions.map((transaction) => ({
-      ...transaction,
-    }));
-
-    const demoGoals = initialGoals.map((goal) => ({
-      ...goal,
-      category: goal.category || "Personal",
-    }));
+    const demoTransactions = getDemoTransactions();
+    const demoGoals = getDemoGoals();
 
     setTransactions(demoTransactions);
     setGoals(demoGoals);
@@ -642,7 +1395,6 @@ function App() {
     saveLocal("pace-monthly-budget", defaultBudget);
     saveLocal("pace-category-budgets", {});
     saveLocal("pace-guard-threshold", defaultGuardThreshold);
->>>>>>> e044569 (Finalize PACE V1)
   }
 
   function saveBudgetSettings(event) {
@@ -665,733 +1417,108 @@ function App() {
     }));
   }
 
+  const guardActive = budgetUsed >= guardThreshold;
+
   function renderPage() {
     switch (activePage) {
       case "activity":
-        return <ActivityPage />;
+        return (
+          <ActivityPage
+            activitySearch={activitySearch}
+            setActivitySearch={setActivitySearch}
+            activityType={activityType}
+            setActivityType={setActivityType}
+            activityCategory={activityCategory}
+            setActivityCategory={setActivityCategory}
+            groupedTransactions={groupedTransactions}
+            availableCategories={availableCategories}
+            openTransactionForm={openTransactionForm}
+            deleteTransaction={deleteTransaction}
+          />
+        );
       case "goals":
-        return <GoalsPage />;
+        return (
+          <GoalsPage
+            goals={goals}
+            openNewGoalForm={openNewGoalForm}
+            editGoal={editGoal}
+            deleteGoal={deleteGoal}
+          />
+        );
       case "budgets":
-        return <BudgetsPage />;
+        return (
+          <BudgetsPage
+            monthlyBudget={monthlyBudget}
+            totalExpenses={totalExpenses}
+            remainingBudget={remainingBudget}
+            categoryBudgets={categoryBudgets}
+            currentMonthTransactions={currentMonthTransactions}
+            updateCategoryBudget={updateCategoryBudget}
+            saveBudgetSettings={saveBudgetSettings}
+            setActivePage={setActivePage}
+          />
+        );
       case "guard":
-        return <SpendingGuardPage />;
+        return (
+          <SpendingGuardPage
+            overLimitCategories={overLimitCategories}
+            budgetUsed={budgetUsed}
+            guardThreshold={guardThreshold}
+            setGuardThreshold={setGuardThreshold}
+            nearLimitCategories={nearLimitCategories}
+            categoryBudgetAlerts={categoryBudgetAlerts}
+            setActivePage={setActivePage}
+          />
+        );
       case "insights":
-        return <InsightsPage />;
+        return (
+          <InsightsPage
+            topCategory={topCategory}
+            averageDailyExpense={averageDailyExpense}
+            savingsRate={savingsRate}
+            currentSavings={currentSavings}
+            currentMonthTransactions={currentMonthTransactions}
+            totalIncome={totalIncome}
+            totalExpenses={totalExpenses}
+            budgetUsed={budgetUsed}
+            setActivePage={setActivePage}
+          />
+        );
       case "settings":
-        return <SettingsPage />;
+        return (
+          <SettingsPage
+            transactions={transactions}
+            goals={goals}
+            resetDemoData={resetDemoData}
+            setActivePage={setActivePage}
+          />
+        );
       default:
-        return <HomePage />;
+        return (
+          <HomePage
+            guardActive={guardActive}
+            budgetUsed={budgetUsed}
+            safeToSpendToday={safeToSpendToday}
+            totalExpenses={totalExpenses}
+            monthlyBudget={monthlyBudget}
+            totalIncome={totalIncome}
+            remainingBudget={remainingBudget}
+            currentSavings={currentSavings}
+            savingsRate={savingsRate}
+            overLimitCategories={overLimitCategories}
+            nearLimitCategories={nearLimitCategories}
+            categoryBudgetAlerts={categoryBudgetAlerts}
+            goals={goals}
+            transactions={transactions}
+            setActivePage={setActivePage}
+            openNewGoalForm={openNewGoalForm}
+            editGoal={editGoal}
+            deleteGoal={deleteGoal}
+            openTransactionForm={openTransactionForm}
+            deleteTransaction={deleteTransaction}
+          />
+        );
     }
-  }
-
-  function HomePage() {
-    const guardActive = budgetUsed >= guardThreshold;
-
-    return (
-      <div className="page-content">
-        <header className="header">
-          <div>
-            <h1 className="logo">PACE</h1>
-            <p className="tagline">
-              Spend with intention. Save with purpose.
-            </p>
-          </div>
-
-          <button
-            className="profile-btn"
-            onClick={() => setActivePage("settings")}
-            aria-label="Open settings"
-          >
-            V
-          </button>
-        </header>
-
-        <section className="safe-card">
-          <p className="eyebrow">SAFE TO SPEND TODAY</p>
-
-          <h2>{formatCurrency(safeToSpendToday)}</h2>
-
-          <p className="safe-text">
-            Based on your remaining monthly budget
-          </p>
-
-          <div className="progress">
-            <div
-              className="progress-bar"
-              style={{ width: `${budgetUsed}%` }}
-            />
-          </div>
-
-          <div className="progress-info">
-            <span>Budget used</span>
-            <span>{budgetUsed.toFixed(0)}%</span>
-          </div>
-        </section>
-
-        <div className="stats">
-          <StatCard label="Spent" value={totalExpenses} hint="This month" />
-          <StatCard label="Budget" value={monthlyBudget} hint="Monthly limit" />
-          <StatCard label="Income" value={totalIncome} hint="This month" />
-          <StatCard
-            label="Remaining"
-            value={Math.max(remainingBudget, 0)}
-            hint={remainingBudget < 0 ? "Over budget" : "Budget left"}
-          />
-        </div>
-
-        <div className="saving-card">
-          <div>
-            <span>Current savings</span>
-            <strong>{formatCurrency(currentSavings)}</strong>
-          </div>
-
-          <div className="saving-circle">{savingsRate.toFixed(0)}%</div>
-        </div>
-
-        <div
-          className={`alert-card ${guardActive || overLimitCategories.length > 0
-            ? "alert-warning"
-            : ""
-            }`}
-        >
-          <div className="alert-icon">
-            {overLimitCategories.length > 0 || guardActive ? "!" : "✓"}
-          </div>
-
-          <div>
-            <h3>
-              {overLimitCategories.length > 0
-                ? `${overLimitCategories[0].category} budget exceeded`
-                : guardActive
-                  ? "Budget warning"
-                  : "You're on track"}
-            </h3>
-
-            <p>
-              {overLimitCategories.length > 0
-                ? `${formatCurrency(
-                  overLimitCategories[0].spent
-                )} spent against a ${formatCurrency(
-                  overLimitCategories[0].limit
-                )} limit.`
-                : guardActive
-                  ? `You've used ${budgetUsed.toFixed(
-                    0
-                  )}% of your monthly budget.`
-                  : nearLimitCategories.length > 0
-                    ? `${nearLimitCategories[0].category} is at ${nearLimitCategories[
-                      0
-                    ].percentage.toFixed(0)}% of its limit.`
-                    : `You have ${formatCurrency(
-                      Math.max(remainingBudget, 0)
-                    )} left in your monthly budget.`}
-            </p>
-          </div>
-        </div>
-        <section className="section">
-          <div className="section-heading">
-            <h2>Category Budgets</h2>
-
-            <button
-              className="text-btn"
-              onClick={() => setActivePage("budgets")}
-            >
-              Manage →
-            </button>
-          </div>
-
-          {categoryBudgetAlerts.length === 0 ? (
-            <div className="category-budget-empty">
-              <span>💰</span>
-              <div>
-                <strong>No category limits set</strong>
-                <small>
-                  Set limits for Food, Shopping, Travel and more.
-                </small>
-              </div>
-
-              <button onClick={() => setActivePage("budgets")}>
-                Set limits →
-              </button>
-            </div>
-          ) : (
-            <div className="dashboard-category-budgets">
-              {categoryBudgetAlerts.map((item) => {
-                const percentage = item.percentage;
-                const progress = Math.min(percentage, 100);
-
-                return (
-                  <div
-                    className={`dashboard-category-budget ${item.overLimit ? "over-budget" : ""
-                      }`}
-                    key={item.category}
-                  >
-                    <div className="dashboard-category-top">
-                      <div className="dashboard-category-name">
-                        <span>
-                          {CATEGORY_ICONS[item.category] || "💳"}
-                        </span>
-
-                        <div>
-                          <strong>{item.category}</strong>
-
-                          <small>
-                            {formatCurrency(item.spent)} spent of{" "}
-                            {formatCurrency(item.limit)}
-                          </small>
-                        </div>
-                      </div>
-
-                      <strong>
-                        {percentage.toFixed(0)}%
-                      </strong>
-                    </div>
-
-                    <div className="progress">
-                      <div
-                        className="progress-bar"
-                        style={{
-                          width: `${progress}%`,
-                        }}
-                      />
-                    </div>
-
-                    <div className="dashboard-category-bottom">
-                      <span>
-                        {item.overLimit
-                          ? `${formatCurrency(
-                            item.spent - item.limit
-                          )} over limit`
-                          : `${formatCurrency(
-                            Math.max(item.limit - item.spent, 0)
-                          )} left`}
-                      </span>
-
-                      <span>
-                        {formatCurrency(item.spent)} spent
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-        <section className="section">
-          <div className="section-heading">
-            <h2>Your Goals</h2>
-            <button
-              className="text-btn"
-              onClick={() => setActivePage("goals")}
-            >
-              View all →
-            </button>
-          </div>
-
-          {goals.length === 0 ? (
-            <EmptyState
-              icon="🎯"
-              title="No goals yet"
-              text="Create your first savings goal."
-              action="+ Create Goal"
-              onAction={openNewGoalForm}
-            />
-          ) : (
-            <div className="dashboard-goals">
-              {goals.slice(0, 3).map((goal) => (
-                <GoalCard
-                  key={goal.id}
-                  goal={goal}
-                  compact
-                  onEdit={editGoal}
-                  onDelete={deleteGoal}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="transactions">
-          <div className="section-header">
-            <h2>Recent Transactions</h2>
-            <button onClick={() => setActivePage("activity")}>
-              View all →
-            </button>
-          </div>
-
-          {transactions.length === 0 ? (
-            <EmptyState
-              icon="💸"
-              title="No transactions"
-              text="Add your first transaction."
-              action="+ Add Transaction"
-              onAction={openTransactionForm}
-            />
-          ) : (
-            transactions.slice(0, 5).map((transaction) => (
-              <Transaction
-                key={transaction.id}
-                transaction={transaction}
-                onDelete={deleteTransaction}
-              />
-            ))
-          )}
-        </section>
-      </div>
-    );
-  }
-
-  function ActivityPage() {
-    return (
-      <div className="page-content page">
-        <div className="page-title-row">
-          <div className="page-title">
-            <span>PACE</span>
-            <h2>Activity</h2>
-            <p>All your transactions.</p>
-          </div>
-
-          <button className="goal-add-btn" onClick={openTransactionForm}>
-            + Add
-          </button>
-        </div>
-
-        <div className="activity-toolbar">
-          <div className="search-box">
-            <span>⌕</span>
-            <input
-              value={activitySearch}
-              onChange={(event) => setActivitySearch(event.target.value)}
-              placeholder="Search transactions"
-            />
-          </div>
-
-          <div className="filter-row">
-            <button
-              className={activityType === "all" ? "filter-chip active" : "filter-chip"}
-              onClick={() => setActivityType("all")}
-            >
-              All
-            </button>
-            <button
-              className={
-                activityType === "expense" ? "filter-chip active" : "filter-chip"
-              }
-              onClick={() => setActivityType("expense")}
-            >
-              Expenses
-            </button>
-            <button
-              className={
-                activityType === "income" ? "filter-chip active" : "filter-chip"
-              }
-              onClick={() => setActivityType("income")}
-            >
-              Income
-            </button>
-          </div>
-
-          <select
-            className="activity-category-select"
-            value={activityCategory}
-            onChange={(event) => setActivityCategory(event.target.value)}
-          >
-            <option value="all">All categories</option>
-            {TRANSACTION_CATEGORIES.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {groupedTransactions.length === 0 ? (
-          <EmptyState
-            icon="🔎"
-            title="Nothing found"
-            text="Try a different search or filter."
-            action="Clear filters"
-            onAction={() => {
-              setActivitySearch("");
-              setActivityType("all");
-              setActivityCategory("all");
-            }}
-          />
-        ) : (
-          <div className="activity-groups">
-            {groupedTransactions.map(([label, items]) => (
-              <section className="activity-group" key={label}>
-                <div className="activity-group-title">
-                  <span>{label}</span>
-                  {label !== "Today" && label !== "Yesterday" && (
-                    <small>{items.length} transactions</small>
-                  )}
-                </div>
-
-                <div className="transactions activity-list">
-                  {items.map((transaction) => (
-                    <Transaction
-                      key={transaction.id}
-                      transaction={transaction}
-                      onDelete={deleteTransaction}
-                      detailed
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  function GoalsPage() {
-    return (
-      <div className="page-content page">
-        <div className="page-title-row">
-          <div className="page-title">
-            <span>PACE</span>
-            <h2>Goals</h2>
-            <p>Save for what matters.</p>
-          </div>
-
-          <button className="goal-add-btn" onClick={openNewGoalForm}>
-            + Goal
-          </button>
-        </div>
-
-        {goals.length === 0 ? (
-          <EmptyState
-            icon="🎯"
-            title="No savings goals"
-            text="Create a goal and start tracking your progress."
-            action="+ Create Goal"
-            onAction={openNewGoalForm}
-          />
-        ) : (
-          <div className="goals-list">
-            {goals.map((goal) => (
-              <GoalCard
-                key={goal.id}
-                goal={goal}
-                onEdit={editGoal}
-                onDelete={deleteGoal}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  function BudgetsPage() {
-    return (
-      <div className="page-content page">
-        <div className="page-title">
-          <span>PACE</span>
-          <h2>Budgets</h2>
-          <p>Give every month a spending boundary.</p>
-        </div>
-
-        <form className="budget-card" onSubmit={saveBudgetSettings}>
-          <div>
-            <span className="card-label">MONTHLY BUDGET</span>
-            <h3>{formatCurrency(monthlyBudget)}</h3>
-            <p>
-              {formatCurrency(totalExpenses)} spent ·{" "}
-              {formatCurrency(Math.max(remainingBudget, 0))} left
-            </p>
-          </div>
-
-          <input
-            name="monthlyBudget"
-            type="number"
-            min="1"
-            defaultValue={monthlyBudget}
-            placeholder="₹20,000"
-          />
-
-          <button className="submit-btn" type="submit">
-            Save Monthly Budget
-          </button>
-        </form>
-
-        <section className="budget-section">
-          <div className="section-heading">
-            <h2>Category Budgets</h2>
-            <span className="muted-text">Optional</span>
-          </div>
-
-          <div className="category-budget-list">
-            {TRANSACTION_CATEGORIES.map((category) => {
-              const spent = currentMonthTransactions
-                .filter(
-                  (item) =>
-                    item.type === "expense" && item.category === category
-                )
-                .reduce((sum, item) => sum + Number(item.amount || 0), 0);
-
-              const limit = Number(categoryBudgets[category] || 0);
-              const progress =
-                limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
-
-              return (
-                <div className="category-budget-card" key={category}>
-                  <div className="category-budget-top">
-                    <div>
-                      <span className="category-budget-icon">
-                        {CATEGORY_ICONS[category] || "💳"}
-                      </span>
-                      <div>
-                        <strong>{category}</strong>
-                        <small>{formatCurrency(spent)} spent</small>
-                      </div>
-                    </div>
-
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="Set limit"
-                      defaultValue={categoryBudgets[category] ?? ""}
-                      onBlur={(event) =>
-                        updateCategoryBudget(category, event.target.value)
-                      }
-                    />
-                  </div>
-
-                  {limit > 0 && (
-                    <>
-                      <div className="progress small-progress">
-                        <div
-                          className="progress-bar"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                      <div className="budget-meta">
-                        <span>{progress.toFixed(0)}% used</span>
-                        <span>
-                          {formatCurrency(Math.max(limit - spent, 0))} left
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      </div>
-    );
-  }
-
-  function SpendingGuardPage() {
-    const status =
-      overLimitCategories.length > 0
-        ? "Category limit exceeded"
-        : budgetUsed >= guardThreshold
-          ? "Warning active"
-          : nearLimitCategories.length > 0
-            ? "Category limit approaching"
-            : "You're on track";
-
-    return (
-      <div className="page-content page">
-        <div className="page-title">
-          <span>PACE</span>
-          <h2>Spending Guard</h2>
-          <p>Get a warning before spending gets out of hand.</p>
-        </div>
-
-        <div className="guard-card">
-          <div className="guard-ring">
-            <strong>{budgetUsed.toFixed(0)}%</strong>
-            <span>budget used</span>
-          </div>
-
-          <div>
-            <span className="card-label">CURRENT STATUS</span>
-            <h3>{status}</h3>
-            <p>
-              {overLimitCategories.length > 0
-                ? `${overLimitCategories.length} category ${overLimitCategories.length === 1 ? "is" : "are"
-                } over the configured limit.`
-                : budgetUsed >= guardThreshold
-                  ? `You've used ${budgetUsed.toFixed(
-                    0
-                  )}% of your monthly budget.`
-                  : nearLimitCategories.length > 0
-                    ? `${nearLimitCategories[0].category} has reached ${nearLimitCategories[
-                      0
-                    ].percentage.toFixed(0)}% of its limit.`
-                    : "Your spending is currently within the configured limits."}
-            </p>
-          </div>
-        </div>
-
-        {categoryBudgetAlerts.length > 0 && (
-          <div className="guard-alert-list">
-            <div className="section-heading">
-              <h2>Category Status</h2>
-            </div>
-
-            {categoryBudgetAlerts.map((item) => (
-              <div
-                className={`guard-category ${item.overLimit ? "over-limit" : ""
-                  }`}
-                key={item.category}
-              >
-                <div>
-                  <strong>
-                    {CATEGORY_ICONS[item.category] || "💳"}{" "}
-                    {item.category}
-                  </strong>
-
-                  <small>
-                    {formatCurrency(item.spent)} /{" "}
-                    {formatCurrency(item.limit)}
-                  </small>
-                </div>
-
-                <span>{item.percentage.toFixed(0)}%</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="settings-card">
-          <div className="settings-row">
-            <div>
-              <strong>Warning threshold</strong>
-              <small>Choose when PACE should warn you.</small>
-            </div>
-
-            <select
-              value={guardThreshold}
-              onChange={(event) =>
-                setGuardThreshold(Number(event.target.value))
-              }
-            >
-              <option value="70">70%</option>
-              <option value="80">80%</option>
-              <option value="90">90%</option>
-              <option value="100">100%</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  function InsightsPage() {
-    return (
-      <div className="page-content page">
-        <div className="page-title">
-          <span>PACE</span>
-          <h2>Insights</h2>
-          <p>A quick read of your current month.</p>
-        </div>
-
-        <div className="insight-grid">
-          <InsightCard
-            title="Top category"
-            value={topCategory[0]}
-            detail={formatCurrency(topCategory[1])}
-          />
-          <InsightCard
-            title="Daily average"
-            value={formatCurrency(averageDailyExpense)}
-            detail="Average expense"
-          />
-          <InsightCard
-            title="Savings rate"
-            value={`${savingsRate.toFixed(0)}%`}
-            detail={formatCurrency(currentSavings)}
-          />
-          <InsightCard
-            title="Transactions"
-            value={currentMonthTransactions.length}
-            detail="This month"
-          />
-        </div>
-
-        <div className="insight-summary">
-          <div className="section-heading">
-            <h2>Month summary</h2>
-          </div>
-
-          <div className="summary-row">
-            <span>Total income</span>
-            <strong>{formatCurrency(totalIncome)}</strong>
-          </div>
-
-          <div className="summary-row">
-            <span>Total expenses</span>
-            <strong>{formatCurrency(totalExpenses)}</strong>
-          </div>
-
-          <div className="summary-row">
-            <span>Budget used</span>
-            <strong>{budgetUsed.toFixed(0)}%</strong>
-          </div>
-
-          <div className="summary-row">
-            <span>Largest category</span>
-            <strong>{topCategory[0]}</strong>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  function SettingsPage() {
-    return (
-      <div className="page-content page">
-        <div className="page-title">
-          <span>PACE</span>
-          <h2>Settings</h2>
-          <p>Simple controls for your local V1.</p>
-        </div>
-
-        <div className="settings-card">
-          <div className="settings-row">
-            <div>
-              <strong>Storage</strong>
-              <small>V1 stores your data in this browser.</small>
-            </div>
-            <span className="status-dot">Local</span>
-          </div>
-
-          <div className="settings-row">
-            <div>
-              <strong>Transactions</strong>
-              <small>{transactions.length} saved transactions</small>
-            </div>
-            <span className="settings-value">↕</span>
-          </div>
-
-          <div className="settings-row">
-            <div>
-              <strong>Goals</strong>
-              <small>{goals.length} saved goals</small>
-            </div>
-            <span className="settings-value">◎</span>
-          </div>
-        </div>
-
-        <div className="danger-card">
-          <div>
-            <strong>Reset demo data</strong>
-            <small>
-              Replaces your current local data with the original PACE V1
-              sample data.
-            </small>
-          </div>
-
-          <button onClick={resetDemoData}>Reset</button>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -1427,35 +1554,49 @@ function App() {
         <NavItem
           icon="☰"
           label="More"
-          active={activePage === "more"}
-          onClick={() => setActivePage("more")}
+          active={
+            activePage === "more" ||
+            ["budgets", "guard", "insights", "settings"].includes(activePage)
+          }
+          onClick={() =>
+            setActivePage((prev) => (prev === "more" ? "home" : "more"))
+          }
         />
       </nav>
 
       {activePage === "more" && (
-        <div className="more-panel">
-          <button onClick={() => setActivePage("budgets")}>
-            <span>💰 Budgets</span>
-            <span>→</span>
-          </button>
-          <button onClick={() => setActivePage("guard")}>
-            <span>🛡 Spending Guard</span>
-            <span>→</span>
-          </button>
-          <button onClick={() => setActivePage("insights")}>
-            <span>📊 Insights</span>
-            <span>→</span>
-          </button>
-          <button onClick={() => setActivePage("settings")}>
-            <span>⚙️ Settings</span>
-            <span>→</span>
-          </button>
-        </div>
+        <>
+          <div
+            className="more-backdrop"
+            onClick={() => setActivePage("home")}
+          />
+          <div className="more-panel">
+            <button onClick={() => setActivePage("budgets")}>
+              <span>💰 Budgets</span>
+              <span>→</span>
+            </button>
+            <button onClick={() => setActivePage("guard")}>
+              <span>🛡 Spending Guard</span>
+              <span>→</span>
+            </button>
+            <button onClick={() => setActivePage("insights")}>
+              <span>📊 Insights</span>
+              <span>→</span>
+            </button>
+            <button onClick={() => setActivePage("settings")}>
+              <span>⚙️ Settings</span>
+              <span>→</span>
+            </button>
+          </div>
+        </>
       )}
 
       {showForm && (
         <div className="modal-overlay" onMouseDown={closeTransactionForm}>
-          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
+          <div
+            className="modal"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
             <div className="modal-header">
               <div>
                 <span>PACE</span>
@@ -1507,6 +1648,9 @@ function App() {
                       setFormData((previous) => ({
                         ...previous,
                         type: "expense",
+                        category: EXPENSE_CATEGORIES.includes(previous.category)
+                          ? previous.category
+                          : "Food",
                       }))
                     }
                   >
@@ -1524,6 +1668,9 @@ function App() {
                       setFormData((previous) => ({
                         ...previous,
                         type: "income",
+                        category: INCOME_CATEGORIES.includes(previous.category)
+                          ? previous.category
+                          : "Salary",
                       }))
                     }
                   >
@@ -1539,7 +1686,10 @@ function App() {
                   value={formData.category}
                   onChange={handleInputChange}
                 >
-                  {TRANSACTION_CATEGORIES.map((category) => (
+                  {(formData.type === "income"
+                    ? INCOME_CATEGORIES
+                    : EXPENSE_CATEGORIES
+                  ).map((category) => (
                     <option key={category} value={category}>
                       {category}
                     </option>
@@ -1595,7 +1745,10 @@ function App() {
 
       {showGoalForm && (
         <div className="modal-overlay" onMouseDown={closeGoalForm}>
-          <div className="modal" onMouseDown={(event) => event.stopPropagation()}>
+          <div
+            className="modal"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
             <div className="modal-header">
               <div>
                 <span>PACE</span>
@@ -1711,10 +1864,7 @@ function GoalCard({ goal, compact = false, onEdit, onDelete }) {
       ? Math.min((Number(goal.saved) / Number(goal.target)) * 100, 100)
       : 0;
 
-  const remaining = Math.max(
-    Number(goal.target) - Number(goal.saved),
-    0
-  );
+  const remaining = Math.max(Number(goal.target) - Number(goal.saved), 0);
 
   return (
     <div className={compact ? "dashboard-goal-card" : "goal-card"}>
@@ -1829,8 +1979,4 @@ function NavItem({ icon, label, active, onClick }) {
   );
 }
 
-<<<<<<< HEAD
 export default App;
-=======
-export default App;
->>>>>>> e044569 (Finalize PACE V1)

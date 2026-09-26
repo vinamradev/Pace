@@ -751,6 +751,31 @@ select {
 
 /* MORE */
 
+.more-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.back-btn {
+  border: 1px solid #292929;
+  border-radius: 10px;
+  background: #161616;
+  color: #aaa;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  background: #222;
+  color: #fff;
+  border-color: #444;
+}
+
 .more-panel {
   position: fixed;
   left: 50%;
@@ -1664,62 +1689,11 @@ select {
   font-weight: 600;
 }
 
-<<<<<<< HEAD
-/* iOS Safari - prevent form focus zoom */
-@media screen and (max-width: 768px) {
-
-  .modal input,
-  .modal select,
-  .modal textarea {
-    font-size: 16px !important;
-  }
-}
-
-/* iOS Safari - prevent input zoom */
-@media screen and (max-width: 768px) {
-
-  .modal input,
-  .modal select,
-  .modal textarea,
-  .budget-card input,
-  .category-budget-top input,
-  .activity-category-select,
-  .search-box input {
-    font-size: 16px !important;
-  }
-}
-
-/* Mobile modal form row alignment */
-.form-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
-  width: 100%;
-}
-
-.form-row>label {
-  min-width: 0;
-  width: 100%;
-}
-
-.form-row input,
-.form-row select {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-/* MOBILE FORM FIX + iOS SAFARI */
-@media screen and (max-width: 768px) {
-
-=======
 /* =================================
    FINAL MOBILE / IOS SAFARI FIXES
 ================================= */
 
 @media screen and (max-width: 768px) {
->>>>>>> e044569 (Finalize PACE V1)
   .modal input,
   .modal select,
   .modal textarea,
@@ -1732,11 +1706,7 @@ select {
     box-sizing: border-box;
   }
 
-<<<<<<< HEAD
-  .form-row {
-=======
   .modal .form-row {
->>>>>>> e044569 (Finalize PACE V1)
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 10px;
@@ -1744,32 +1714,20 @@ select {
     min-width: 0;
   }
 
-<<<<<<< HEAD
-  .form-row>label {
-=======
   .modal .form-row > label {
->>>>>>> e044569 (Finalize PACE V1)
     display: block;
     width: 100%;
     min-width: 0;
   }
 
-<<<<<<< HEAD
-  .form-row input,
-  .form-row select {
-=======
   .modal .form-row input,
   .modal .form-row select {
->>>>>>> e044569 (Finalize PACE V1)
     display: block;
     width: 100%;
     min-width: 0;
     max-width: 100%;
     box-sizing: border-box;
   }
-<<<<<<< HEAD
-}
-=======
 }
 
 @media screen and (max-width: 360px) {
@@ -1777,4 +1735,3 @@ select {
     grid-template-columns: 1fr;
   }
 }
->>>>>>> e044569 (Finalize PACE V1)
