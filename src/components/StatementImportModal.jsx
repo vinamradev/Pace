@@ -55,13 +55,24 @@ export default function StatementImportModal({ isOpen, onClose, onImportTransact
       }
     } catch (err) {
       console.error("Statement parse failed:", err);
-      const msg = err.message || "";
-      if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("encrypted")) {
+      const msg = (err && err.message) || "";
+      const lower = msg.toLowerCase();
+
+      if (lower.includes("password") || lower.includes("encrypted")) {
         setError(
-          "This PDF statement is password-protected. Please remove the password (or print/save to a new PDF) and re-upload, or upload an Excel (.xlsx) export."
+          "This bank statement is password-protected. Please open and save/print it without a password, or upload an Excel (.xlsx) / screenshot export instead."
+        );
+      } else if (
+        lower.includes("undefined is not a function") ||
+        lower.includes("e of t") ||
+        lower.includes("not iterable") ||
+        lower.includes("invalid pdf")
+      ) {
+        setError(
+          "This bank document has custom font encoding that couldn't be parsed directly as PDF. Please export as Excel (.xlsx) or CSV from your bank, or take a screenshot of your transaction history and upload it!"
         );
       } else {
-        setError("Error processing file: " + (err.message || "Unknown error"));
+        setError(msg || "Could not process this file. Please verify format.");
       }
     } finally {
       setIsProcessing(false);
