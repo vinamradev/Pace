@@ -1,13 +1,16 @@
 import express from "express";
 import Budget from "../models/Budget.js";
+import { authenticateToken } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-// GET /api/budgets?userId=...
+// Apply JWT authentication
+router.use(authenticateToken);
+
+// GET /api/budgets
 router.get("/", async (req, res) => {
   try {
-    const { userId } = req.query;
-    if (!userId) return res.status(400).json({ message: "userId query param required" });
+    const userId = req.user.id;
 
     let budget = await Budget.findOne({ userId });
     if (!budget) {
@@ -19,31 +22,38 @@ router.get("/", async (req, res) => {
       });
     }
 
-    res.json(budget);
+    res.json({ success: true, budget });
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch budget", error: error.message });
+    res.status(500).json({ success: false, message: "Failed to fetch budget", error: error.message });
   }
 });
 
 // POST /api/budgets (Upsert)
 router.post("/", async (req, res) => {
   try {
-    const { userId, monthlyBudget, guardThreshold, categoryBudgets } = req.body;
-    if (!userId) return res.status(400).json({ message: "userId required" });
+    const userId = req.user.id;
+    const { monthlyBudget, guardThreshold, categoryBudgets } = req.body;
+
+    const updateFields = {};
+    if (monthlyBudget !== undefined) {
+      updateFields.monthlyBudget = Math.max(0, Number(monthlyBudget) || 0);
+    }
+    if (guardThreshold !== undefined) {
+      updateFields.guardThreshold = Math.min(100, Math.max(10, Number(guardThreshold) || 80));
+    }
+    if (categoryBudgets !== undefined && typeof categoryBudgets === "object") {
+      updateFields.categoryBudgets = categoryBudgets;
+    }
 
     const budget = await Budget.findOneAndUpdate(
       { userId },
-      {
-        ...(monthlyBudget !== undefined && { monthlyBudget: Number(monthlyBudget) }),
-        ...(guardThreshold !== undefined && { guardThreshold: Number(guardThreshold) }),
-        ...(categoryBudgets !== undefined && { categoryBudgets }),
-      },
+      updateFields,
       { new: true, upsert: true }
     );
 
-    res.json(budget);
+    res.json({ success: true, budget });
   } catch (error) {
-    res.status(500).json({ message: "Failed to update budget", error: error.message });
+    res.status(500).json({ success: false, message: "Failed to update budget", error: error.message });
   }
 });
 

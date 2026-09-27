@@ -10,8 +10,9 @@ export async function connectDB() {
 
   try {
     isConnecting = true;
+    mongoose.set("bufferTimeoutMS", 3000);
     const conn = await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 3000,
     });
     isConnected = true;
     isConnecting = false;

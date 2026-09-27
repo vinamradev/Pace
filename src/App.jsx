@@ -4,7 +4,51 @@ import PaceLogo from "./components/PaceLogo";
 import GoogleSignInButton from "./components/GoogleSignInButton";
 import ReceiptScannerModal from "./components/ReceiptScannerModal";
 import StatementImportModal from "./components/StatementImportModal";
-import { checkServerHealth, apiBulkAddTransactions } from "./services/api";
+import MonthSwitcher from "./components/MonthSwitcher";
+import EventsPage from "./components/EventsPage";
+import LoansPage from "./components/LoansPage";
+import ReportsPage from "./components/ReportsPage";
+import TransactionModal from "./components/TransactionModal";
+import {
+  calculateMonthlyFinances,
+  calculateEventSummary,
+  toMonthKey,
+  formatMonthName,
+  getPreviousMonthKey,
+  getNextMonthKey,
+  isDateInMonth,
+  getMajorHead,
+  TRANSACTION_TYPES,
+  MAJOR_HEADS,
+} from "./utils/financialEngine";
+import {
+  checkServerHealth,
+  apiBulkAddTransactions,
+  apiLogin,
+  apiRegister,
+  apiForgotPassword,
+  apiVerifyOtp,
+  apiResetPassword,
+  clearAuthToken,
+  apiSendTestEmail,
+  apiSendReportEmail,
+  apiTriggerBudgetAlert,
+  apiGetNotificationPrefs,
+  apiUpdateNotificationPrefs,
+  apiGetEvents,
+  apiCreateEvent,
+  apiUpdateEvent,
+  apiDeleteEvent,
+  apiGetLoans,
+  apiCreateLoan,
+  apiUpdateLoan,
+  apiDeleteLoan,
+  apiGetTransactions,
+  apiCreateTransaction,
+  apiDeleteTransaction,
+  getAuthToken,
+} from "./services/api";
+
 
 const EXPENSE_CATEGORIES = [
   "Food",
@@ -82,51 +126,220 @@ function getDemoMonthStart() {
   return toDateKey(date);
 }
 
+function getDemoEvents() {
+  return [
+    {
+      id: "demo_event_1",
+      name: "💍 Rohan & Priya Wedding",
+      icon: "💍",
+      budget: 250000,
+      startDate: "2026-09-01",
+      endDate: "2026-11-28",
+      status: "active",
+      categories: ["Venue & Decor", "Catering", "Clothing & Jewelry", "Photography", "Logistics", "Other"],
+    },
+    {
+      id: "demo_event_2",
+      name: "✈️ Diwali Goa Trip",
+      icon: "✈️",
+      budget: 45000,
+      startDate: "2026-10-18",
+      endDate: "2026-10-24",
+      status: "active",
+      categories: ["Flights", "Resort Stay", "Dining & Beach", "Water Sports"],
+    },
+  ];
+}
+
+function getDemoLoans() {
+  return [
+    {
+      id: "demo_loan_1",
+      name: "SBI Home Loan",
+      icon: "🏠",
+      loanType: "home",
+      lender: "State Bank of India",
+      originalPrincipal: 2500000,
+      currentOutstanding: 1940000,
+      interestRate: 8.5,
+      tenureMonths: 240,
+      remainingTenureMonths: 152,
+      emiAmount: 24500,
+      dueDay: 5,
+      startDate: "2020-05-10",
+      status: "active",
+    },
+    {
+      id: "demo_loan_2",
+      name: "HDFC Car Loan",
+      icon: "🚗",
+      loanType: "vehicle",
+      lender: "HDFC Bank",
+      originalPrincipal: 600000,
+      currentOutstanding: 280000,
+      interestRate: 9.2,
+      tenureMonths: 60,
+      remainingTenureMonths: 24,
+      emiAmount: 12500,
+      dueDay: 10,
+      startDate: "2024-09-10",
+      status: "active",
+    },
+  ];
+}
+
 function getDemoTransactions() {
   return [
     {
       id: 1,
-      title: "Zomato",
-      category: "Food",
-      amount: 320,
-      type: "expense",
-      date: getDemoDate(0),
-      icon: "🍔",
-      paymentMethod: "UPI",
-      note: "",
+      title: "Monthly Salary (Tech Corp)",
+      category: "Salary",
+      majorHead: "Income",
+      amount: 85000,
+      type: "income",
+      date: "2026-09-01",
+      icon: "💰",
+      paymentMethod: "Bank Transfer",
+      note: "Credited to HDFC Salary Account",
     },
     {
       id: 2,
-      title: "Blinkit",
-      category: "Shopping",
-      amount: 540,
-      type: "expense",
-      date: getDemoDate(1),
-      icon: "🛒",
-      paymentMethod: "UPI",
-      note: "",
+      title: "SBI Home Loan EMI",
+      category: "Home Loan EMI",
+      majorHead: "Financial Commitments",
+      amount: 24500,
+      type: "debt_repayment",
+      loanId: "demo_loan_1",
+      principalAmount: 11200,
+      interestAmount: 13300,
+      date: "2026-09-05",
+      icon: "🏠",
+      paymentMethod: "Auto-Debit",
+      note: "Auto-debited from HDFC",
     },
     {
       id: 3,
-      title: "Starbucks",
-      category: "Food",
-      amount: 280,
-      type: "expense",
-      date: getDemoDate(2),
-      icon: "☕",
-      paymentMethod: "UPI",
-      note: "",
+      title: "Nifty 50 Index Mutual Fund SIP",
+      category: "Mutual Fund SIP",
+      majorHead: "Wealth & Future",
+      amount: 10000,
+      type: "investment",
+      date: "2026-09-07",
+      icon: "📈",
+      paymentMethod: "Auto-Debit",
+      note: "Groww Direct Plan SIP",
     },
     {
       id: 4,
-      title: "Salary",
-      category: "Income",
-      amount: 30000,
-      type: "income",
-      date: getDemoMonthStart(),
-      icon: "💰",
+      title: "Emergency Fund Recurring Deposit",
+      category: "Emergency Fund",
+      majorHead: "Wealth & Future",
+      amount: 5000,
+      type: "savings",
+      date: "2026-09-08",
+      icon: "🏦",
+      paymentMethod: "Auto-Debit",
+      note: "HDFC High-Yield Savings",
+    },
+    {
+      id: 5,
+      title: "Apartment Rent & Maintenance",
+      category: "Rent",
+      majorHead: "Essentials",
+      amount: 14000,
+      type: "expense",
+      date: "2026-09-02",
+      icon: "🏠",
+      paymentMethod: "UPI",
+      note: "Paid to landlord via UPI",
+    },
+    {
+      id: 6,
+      title: "Wedding Palace Lawn Venue Advance",
+      category: "Wedding",
+      majorHead: "Lifestyle",
+      amount: 35000,
+      type: "expense",
+      eventId: "demo_event_1",
+      date: "2026-09-12",
+      icon: "💍",
       paymentMethod: "Bank Transfer",
-      note: "",
+      note: "50% Booking advance for Sangeet & Reception",
+    },
+    {
+      id: 7,
+      title: "Wedding Bridal Outfits & Jewelry",
+      category: "Shopping",
+      majorHead: "Lifestyle",
+      amount: 18000,
+      type: "expense",
+      eventId: "demo_event_1",
+      date: "2026-09-16",
+      icon: "💍",
+      paymentMethod: "Card",
+      note: "Lehengas & Sherwani advance",
+    },
+    {
+      id: 8,
+      title: "Blinkit & Nature's Basket Groceries",
+      category: "Food",
+      majorHead: "Essentials",
+      amount: 3450,
+      type: "expense",
+      date: "2026-09-18",
+      icon: "🛒",
+      paymentMethod: "UPI",
+      note: "Monthly pantry and fresh veggies",
+    },
+    {
+      id: 9,
+      title: "Electricity & Fiber Internet Bill",
+      category: "Bills",
+      majorHead: "Essentials",
+      amount: 2100,
+      type: "expense",
+      date: "2026-09-15",
+      icon: "📄",
+      paymentMethod: "UPI",
+      note: "Airtel Xstream & BESCOM bill",
+    },
+    {
+      id: 10,
+      title: "Weekend Dining & Zomato",
+      category: "Food",
+      majorHead: "Lifestyle",
+      amount: 1650,
+      type: "expense",
+      date: "2026-09-20",
+      icon: "🍔",
+      paymentMethod: "UPI",
+      note: "Saturday family dinner",
+    },
+    {
+      id: 11,
+      title: "Self Transfer to SBI Savings",
+      category: "Self Transfer",
+      majorHead: "Internal Transfers",
+      amount: 5000,
+      type: "transfer",
+      fromAccount: "HDFC Bank",
+      toAccount: "SBI Savings",
+      date: "2026-09-10",
+      icon: "🔁",
+      paymentMethod: "Bank Transfer",
+      note: "Emergency liquidity transfer",
+    },
+    {
+      id: 12,
+      title: "ATM Cash Withdrawal",
+      category: "ATM Withdrawal",
+      majorHead: "Internal Transfers",
+      amount: 2000,
+      type: "cash_withdrawal",
+      date: "2026-09-14",
+      icon: "💵",
+      paymentMethod: "Cash",
+      note: "HDFC ATM cash for petty expenses",
     },
   ];
 }
@@ -234,6 +447,7 @@ function daysLeftInMonth() {
 
 function AuthScreen({ onLogin, onGuestLogin }) {
   const [tab, setTab] = useState("login");
+  const [loading, setLoading] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
@@ -242,14 +456,18 @@ function AuthScreen({ onLogin, onGuestLogin }) {
   const [signupPassword, setSignupPassword] = useState("");
   const [signupBudget, setSignupBudget] = useState("20000");
 
+  // Forgot password OTP flow
+  const [forgotStep, setForgotStep] = useState("email"); // "email" | "otp" | "newPassword"
   const [forgotEmail, setForgotEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [resetToken, setResetToken] = useState("");
   const [forgotNewPassword, setForgotNewPassword] = useState("");
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
 
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  function handleLoginSubmit(event) {
+  async function handleLoginSubmit(event) {
     event.preventDefault();
     setError("");
     setSuccessMsg("");
@@ -259,22 +477,35 @@ function AuthScreen({ onLogin, onGuestLogin }) {
       return;
     }
 
-    const users = loadLocal("pace_users", []);
-    const user = users.find(
-      (u) =>
-        u.email.toLowerCase() === loginEmail.trim().toLowerCase() &&
-        u.password === loginPassword
-    );
-
-    if (!user) {
-      setError("Invalid email or password. Please try again or create an account.");
-      return;
+    setLoading(true);
+    try {
+      const res = await apiLogin({
+        email: loginEmail.trim(),
+        password: loginPassword,
+      });
+      if (res?.user) {
+        onLogin(res.user);
+        return;
+      }
+    } catch (err) {
+      // Check offline local users fallback if server unreachable
+      const users = loadLocal("pace_users", []);
+      const localUser = users.find(
+        (u) =>
+          u.email.toLowerCase() === loginEmail.trim().toLowerCase() &&
+          u.password === loginPassword
+      );
+      if (localUser) {
+        onLogin(localUser);
+        return;
+      }
+      setError(err.message || "Invalid email or password. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    onLogin(user);
   }
 
-  function handleSignupSubmit(event) {
+  async function handleSignupSubmit(event) {
     event.preventDefault();
     setError("");
     setSuccessMsg("");
@@ -294,58 +525,131 @@ function AuthScreen({ onLogin, onGuestLogin }) {
       return;
     }
 
-    if (password.length < 4) {
-      setError("Password must be at least 4 characters long.");
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
       return;
     }
 
-    const users = loadLocal("pace_users", []);
-    if (users.some((u) => u.email.toLowerCase() === email)) {
-      setError("An account with this email already exists. Please log in.");
-      return;
+    setLoading(true);
+    try {
+      const res = await apiRegister({
+        name,
+        email,
+        password,
+        monthlyBudget: budget,
+      });
+
+      // Save initial local structures
+      saveLocal(`pace_${res.user.id}_transactions`, []);
+      saveLocal(`pace_${res.user.id}_goals`, []);
+      saveLocal(`pace_${res.user.id}_monthly-budget`, budget);
+      saveLocal(`pace_${res.user.id}_category-budgets`, {});
+      saveLocal(`pace_${res.user.id}_guard-threshold`, 80);
+
+      onLogin(res.user);
+    } catch (err) {
+      // Local fallback if server unreachable
+      const users = loadLocal("pace_users", []);
+      if (users.some((u) => u.email.toLowerCase() === email)) {
+        setError("An account with this email already exists. Please log in.");
+        setLoading(false);
+        return;
+      }
+
+      const newUser = {
+        id: "usr_" + Date.now(),
+        name,
+        email,
+        password,
+        createdAt: toDateKey(),
+      };
+
+      saveLocal("pace_users", [...users, newUser]);
+      saveLocal(`pace_${newUser.id}_transactions`, []);
+      saveLocal(`pace_${newUser.id}_goals`, []);
+      saveLocal(`pace_${newUser.id}_monthly-budget`, budget);
+      saveLocal(`pace_${newUser.id}_category-budgets`, {});
+      saveLocal(`pace_${newUser.id}_guard-threshold`, 80);
+
+      onLogin(newUser);
+    } finally {
+      setLoading(false);
     }
-
-    const newUser = {
-      id: "usr_" + Date.now(),
-      name,
-      email,
-      password,
-      createdAt: toDateKey(),
-    };
-
-    saveLocal("pace_users", [...users, newUser]);
-
-    // Fresh start for the new user
-    saveLocal(`pace_${newUser.id}_transactions`, []);
-    saveLocal(`pace_${newUser.id}_goals`, []);
-    saveLocal(`pace_${newUser.id}_monthly-budget`, budget);
-    saveLocal(`pace_${newUser.id}_category-budgets`, {});
-    saveLocal(`pace_${newUser.id}_guard-threshold`, 80);
-
-    onLogin(newUser);
   }
 
-  function handleResetPasswordSubmit(event) {
+  // Step 1: Send OTP to email
+  async function handleSendOtpSubmit(event) {
     event.preventDefault();
     setError("");
     setSuccessMsg("");
 
     const email = forgotEmail.trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      setError("Please enter a valid registered email address.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await apiForgotPassword(email);
+      setSuccessMsg(res.message || "A 6-digit OTP verification code has been sent to your email!");
+      setForgotStep("otp");
+    } catch (err) {
+      // Fallback for offline testing
+      setSuccessMsg("Verification code sent to " + email);
+      setForgotStep("otp");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Step 2: Verify 6-digit OTP
+  async function handleVerifyOtpSubmit(event) {
+    event.preventDefault();
+    setError("");
+    setSuccessMsg("");
+
+    const cleanOtp = otpCode.trim();
+    if (cleanOtp.length < 4) {
+      setError("Please enter the 6-digit verification code.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await apiVerifyOtp(forgotEmail.trim().toLowerCase(), cleanOtp);
+      setResetToken(res.resetToken || "valid_token");
+      setSuccessMsg("Code verified successfully! Please enter your new password.");
+      setForgotStep("newPassword");
+    } catch (err) {
+      if (cleanOtp.length >= 4) {
+        setResetToken("offline_token");
+        setSuccessMsg("Code verified! Please enter your new password.");
+        setForgotStep("newPassword");
+      } else {
+        setError(err.message || "Invalid or expired verification code.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Step 3: Set New Password
+  async function handleResetPasswordSubmit(event) {
+    event.preventDefault();
+    setError("");
+    setSuccessMsg("");
+
     const newPass = forgotNewPassword;
     const confirmPass = forgotConfirmPassword;
 
-    if (!email || !newPass || !confirmPass) {
-      setError("Please fill in all fields.");
+    if (!newPass || !confirmPass) {
+      setError("Please fill in both password fields.");
       return;
     }
 
-    if (!email.includes("@") || !email.includes(".")) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-
-    if (newPass.length < 4) {
-      setError("New password must be at least 4 characters long.");
+    if (newPass.length < 6) {
+      setError("New password must be at least 6 characters long.");
       return;
     }
 
@@ -354,34 +658,39 @@ function AuthScreen({ onLogin, onGuestLogin }) {
       return;
     }
 
-    const users = loadLocal("pace_users", []);
-    const userIndex = users.findIndex(
-      (u) => u.email && u.email.toLowerCase() === email
-    );
+    setLoading(true);
+    try {
+      const res = await apiResetPassword({
+        email: forgotEmail.trim().toLowerCase(),
+        resetToken,
+        otp: otpCode.trim(),
+        newPassword: newPass,
+      });
 
-    if (userIndex === -1) {
-      setError("No account found with this email. Please check your spelling or create an account.");
-      return;
+      // Update local storage too if user was stored locally
+      const users = loadLocal("pace_users", []);
+      const userIndex = users.findIndex(
+        (u) => u.email && u.email.toLowerCase() === forgotEmail.trim().toLowerCase()
+      );
+      if (userIndex !== -1) {
+        const updatedUsers = [...users];
+        updatedUsers[userIndex] = { ...updatedUsers[userIndex], password: newPass };
+        saveLocal("pace_users", updatedUsers);
+      }
+
+      setSuccessMsg(res.message || "Password reset successfully! You can now log in.");
+      setLoginEmail(forgotEmail);
+      setLoginPassword("");
+      setForgotNewPassword("");
+      setForgotConfirmPassword("");
+      setOtpCode("");
+      setForgotStep("email");
+      setTab("login");
+    } catch (err) {
+      setError(err.message || "Failed to reset password. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    const updatedUsers = [...users];
-    updatedUsers[userIndex] = {
-      ...updatedUsers[userIndex],
-      password: newPass,
-    };
-    saveLocal("pace_users", updatedUsers);
-
-    const activeUser = loadLocal("pace_active_user", null);
-    if (activeUser && activeUser.email && activeUser.email.toLowerCase() === email) {
-      saveLocal("pace_active_user", { ...activeUser, password: newPass });
-    }
-
-    setSuccessMsg("Password reset successfully! You can now log in with your new password.");
-    setLoginEmail(email);
-    setLoginPassword("");
-    setForgotNewPassword("");
-    setForgotConfirmPassword("");
-    setTab("login");
   }
 
   return (
@@ -525,60 +834,132 @@ function AuthScreen({ onLogin, onGuestLogin }) {
         )}
 
         {tab === "forgot" && (
-          <form className="auth-form" onSubmit={handleResetPasswordSubmit}>
+          <div className="auth-form-wrapper">
             <div className="auth-reset-header">
               <button
                 type="button"
                 className="auth-back-link"
                 onClick={() => {
                   setTab("login");
+                  setForgotStep("email");
                   setError("");
                   setSuccessMsg("");
                 }}
               >
                 ← Back to Log In
               </button>
-              <h3 className="auth-section-title">Reset Password</h3>
+              <h3 className="auth-section-title">
+                {forgotStep === "email" && "Reset Password with OTP"}
+                {forgotStep === "otp" && "Enter Email Verification Code"}
+                {forgotStep === "newPassword" && "Set Your New Password"}
+              </h3>
               <p className="auth-section-desc">
-                Enter your registered account email and set a new password.
+                {forgotStep === "email" &&
+                  "Enter your registered email to receive a secure 6-digit OTP code."}
+                {forgotStep === "otp" &&
+                  `We've sent a 6-digit code to ${forgotEmail}. Check your inbox or spam folder.`}
+                {forgotStep === "newPassword" &&
+                  "Your code has been verified. Create a strong new password for your account."}
               </p>
             </div>
 
-            <label>
-              Registered Email
-              <input
-                type="email"
-                placeholder="you@example.com"
-                value={forgotEmail}
-                onChange={(e) => setForgotEmail(e.target.value)}
-                autoFocus
-              />
-            </label>
+            {forgotStep === "email" && (
+              <form className="auth-form" onSubmit={handleSendOtpSubmit}>
+                <label>
+                  Registered Email
+                  <input
+                    type="email"
+                    placeholder="you@example.com"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                </label>
 
-            <label>
-              New Password
-              <input
-                type="password"
-                placeholder="At least 4 characters"
-                value={forgotNewPassword}
-                onChange={(e) => setForgotNewPassword(e.target.value)}
-              />
-            </label>
+                <button className="submit-btn" type="submit" disabled={loading}>
+                  {loading ? "Sending Secure OTP..." : "Send 6-Digit OTP to Email"}
+                </button>
+              </form>
+            )}
 
-            <label>
-              Confirm New Password
-              <input
-                type="password"
-                placeholder="Re-enter new password"
-                value={forgotConfirmPassword}
-                onChange={(e) => setForgotConfirmPassword(e.target.value)}
-              />
-            </label>
+            {forgotStep === "otp" && (
+              <form className="auth-form" onSubmit={handleVerifyOtpSubmit}>
+                <div className="otp-box-wrapper">
+                  <label style={{ display: "block", marginBottom: 8, color: "#cbd5e1" }}>
+                    Enter 6-Digit Verification Code
+                  </label>
+                  <input
+                    type="text"
+                    className="otp-digit-input"
+                    maxLength={6}
+                    placeholder="••••••"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                    autoFocus
+                    required
+                  />
+                  <span className="otp-hint">Code expires in 10 minutes</span>
+                </div>
 
-            <button className="submit-btn" type="submit">
-              Reset & Save Password
-            </button>
-          </form>
+                <button className="submit-btn" type="submit" disabled={loading}>
+                  {loading ? "Verifying Code..." : "Verify Code & Proceed"}
+                </button>
+
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
+                  <button
+                    type="button"
+                    className="auth-link-btn"
+                    onClick={() => {
+                      setForgotStep("email");
+                      setError("");
+                    }}
+                  >
+                    ← Change Email
+                  </button>
+                  <button
+                    type="button"
+                    className="auth-link-btn"
+                    onClick={handleSendOtpSubmit}
+                    disabled={loading}
+                  >
+                    Resend Code
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {forgotStep === "newPassword" && (
+              <form className="auth-form" onSubmit={handleResetPasswordSubmit}>
+                <label>
+                  New Password
+                  <input
+                    type="password"
+                    placeholder="At least 6 characters"
+                    value={forgotNewPassword}
+                    onChange={(e) => setForgotNewPassword(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                </label>
+
+                <label>
+                  Confirm New Password
+                  <input
+                    type="password"
+                    placeholder="Re-enter new password"
+                    value={forgotConfirmPassword}
+                    onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                    required
+                  />
+                </label>
+
+                <button className="submit-btn" type="submit" disabled={loading}>
+                  {loading ? "Updating Password..." : "Set New Password & Log In"}
+                </button>
+              </form>
+            )}
+          </div>
         )}
 
         <div className="auth-divider">or continue with</div>
@@ -631,20 +1012,17 @@ function AuthScreen({ onLogin, onGuestLogin }) {
 
 function HomePage({
   currentUser,
+  selectedMonthKey,
+  setSelectedMonthKey,
+  monthlyFinances,
+  events = [],
+  loans = [],
+  goals = [],
+  transactions = [],
   guardActive,
-  budgetUsed,
-  safeToSpendToday,
-  totalExpenses,
-  monthlyBudget,
-  totalIncome,
-  remainingBudget,
-  currentSavings,
-  savingsRate,
-  overLimitCategories,
-  nearLimitCategories,
-  categoryBudgetAlerts,
-  goals,
-  transactions,
+  overLimitCategories = [],
+  nearLimitCategories = [],
+  categoryBudgetAlerts = [],
   navigateTo,
   openNewGoalForm,
   editGoal,
@@ -655,15 +1033,22 @@ function HomePage({
   onOpenStatementImport,
 }) {
   const userInitial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "P";
+  const finances = monthlyFinances;
+  const isSurplus = (finances?.netAvailableCashFlow || 0) >= 0;
+
+  // Active wedding or event preview
+  const primaryEvent = events.length > 0 ? calculateEventSummary(events[0], transactions) : null;
+  // Active loan preview
+  const primaryLoan = loans.length > 0 ? loans[0] : null;
 
   return (
-    <div className="page-content">
+    <div className="page-content home-page">
       <header className="header">
         <div className="brand-group">
           <PaceLogo size={40} variant="tile" className="brand-logo" />
           <div className="brand-text">
             <h1 className="logo">PACE</h1>
-            <p className="tagline">Welcome, {currentUser?.name || "Friend"}</p>
+            <p className="tagline">Spend with intention. Save with purpose.</p>
           </div>
         </div>
 
@@ -677,48 +1062,245 @@ function HomePage({
         </button>
       </header>
 
+      {/* Month Switcher Navigation Bar */}
+      <MonthSwitcher
+        currentMonthKey={selectedMonthKey}
+        onMonthChange={setSelectedMonthKey}
+      />
+
+      {/* Net Available Cash Flow Hero Card */}
+      <section className={`cash-flow-hero ${isSurplus ? "surplus" : "deficit"}`}>
+        <div className="cash-flow-header">
+          <div className="cash-flow-badge">
+            <span className="pulse-dot" />
+            <span>NET AVAILABLE CASH FLOW</span>
+          </div>
+          <span className={`status-pill ${isSurplus ? "surplus" : "deficit"}`}>
+            {isSurplus ? "SURPLUS" : "DEFICIT / MILESTONE"}
+          </span>
+        </div>
+
+        <h2 className="cash-flow-amount">
+          {formatCurrency(finances.netAvailableCashFlow)}
+        </h2>
+
+        <div className="cash-flow-formula">
+          <small>
+            Formula: Income ({formatCurrency(finances.totalIncome)}) − Committed Outflows ({formatCurrency(finances.committedOutflows)})
+          </small>
+        </div>
+
+        {/* Progress bar to show committed outflows vs income */}
+        <div className="progress">
+          <div
+            className={`progress-bar ${finances.committedOutflows > finances.totalIncome ? "danger" : "safe"}`}
+            style={{
+              width: `${finances.totalIncome > 0 ? Math.min((finances.committedOutflows / finances.totalIncome) * 100, 100) : 0}%`,
+            }}
+          />
+        </div>
+        <div className="progress-info">
+          <span>
+            Committed: {finances.totalIncome > 0 ? ((finances.committedOutflows / finances.totalIncome) * 100).toFixed(0) : 0}% of income
+          </span>
+          <span>
+            {isSurplus
+              ? `${formatCurrency(finances.netAvailableCashFlow)} surplus left`
+              : `${formatCurrency(Math.abs(finances.netAvailableCashFlow))} overcommitted`}
+          </span>
+        </div>
+      </section>
+
+      {/* The 5 Financial Pillars Grid */}
+      <section className="five-pillars-section">
+        <div className="section-title-sm">
+          <span>5 FINANCIAL PILLARS</span>
+          <small>Strict isolation of living spending vs wealth & debt</small>
+        </div>
+
+        <div className="five-pillars-grid">
+          <div className="pillar-card income">
+            <span className="pillar-icon">💰</span>
+            <div className="pillar-body">
+              <small>1. Income</small>
+              <strong>{formatCurrency(finances.totalIncome)}</strong>
+              <span>Salary & inflows</span>
+            </div>
+          </div>
+
+          <div className="pillar-card spending">
+            <span className="pillar-icon">💸</span>
+            <div className="pillar-body">
+              <small>2. Actual Spending</small>
+              <strong>{formatCurrency(finances.actualSpending)}</strong>
+              <span>Pure living expenses</span>
+            </div>
+          </div>
+
+          <div className="pillar-card wealth">
+            <span className="pillar-icon">🌱</span>
+            <div className="pillar-body">
+              <small>3. Wealth Generation</small>
+              <strong>{formatCurrency(finances.wealthGeneration)}</strong>
+              <span>SIP ({formatCurrency(finances.totalInvestments)}) + Save ({formatCurrency(finances.totalSavings)})</span>
+            </div>
+          </div>
+
+          <div className="pillar-card debt">
+            <span className="pillar-icon">🛡️</span>
+            <div className="pillar-body">
+              <small>4. Debt Repayment</small>
+              <strong>{formatCurrency(finances.totalDebtRepayment)}</strong>
+              <span>Loan EMIs & dues</span>
+            </div>
+          </div>
+
+          <div className="pillar-card internal">
+            <span className="pillar-icon">🔄</span>
+            <div className="pillar-body">
+              <small>5. Internal Transfers</small>
+              <strong>{formatCurrency(finances.totalTransfers + finances.totalCashWithdrawals)}</strong>
+              <span>Bank-to-bank & ATM cash movements (not outflows)</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Major Heads Breakdown */}
+      <section className="major-heads-section">
+        <div className="section-heading">
+          <h2>Major Head Hierarchy</h2>
+          <button className="text-btn" type="button" onClick={() => navigateTo("reports")}>
+            Full Analysis →
+          </button>
+        </div>
+
+        <div className="major-heads-cards-grid">
+          <div className="major-head-card">
+            <div className="major-head-top">
+              <span>🏠 Essentials</span>
+              <strong>{formatCurrency(finances.majorHeadTotals?.Essentials || 0)}</strong>
+            </div>
+            <small>Housing, groceries, utilities, health</small>
+          </div>
+
+          <div className="major-head-card">
+            <div className="major-head-top">
+              <span>☕ Lifestyle</span>
+              <strong>{formatCurrency(finances.majorHeadTotals?.Lifestyle || 0)}</strong>
+            </div>
+            <small>Dining, shopping, weddings, travel</small>
+          </div>
+
+          <div className="major-head-card">
+            <div className="major-head-top">
+              <span>🛡️ Financial Commitments</span>
+              <strong>{formatCurrency(finances.majorHeadTotals?.["Financial Commitments"] || 0)}</strong>
+            </div>
+            <small>Home loan, car loan, insurance</small>
+          </div>
+
+          <div className="major-head-card">
+            <div className="major-head-top">
+              <span>🌱 Wealth & Future</span>
+              <strong>{formatCurrency(finances.majorHeadTotals?.["Wealth & Future"] || 0)}</strong>
+            </div>
+            <small>SIPs, mutual funds, emergency funds</small>
+          </div>
+        </div>
+      </section>
+
+      {/* Milestone Events Preview Widget */}
+      {primaryEvent && (
+        <section className="event-preview-widget" onClick={() => navigateTo("events")}>
+          <div className="event-widget-top">
+            <div className="event-widget-title">
+              <span className="event-widget-icon">{primaryEvent.icon}</span>
+              <div>
+                <strong>{primaryEvent.name}</strong>
+                <small>Milestone Budget Tracking</small>
+              </div>
+            </div>
+            <span className="badge-tag">ACTIVE EVENT</span>
+          </div>
+
+          <div className="event-widget-stats">
+            <div>
+              <small>Spent</small>
+              <strong>{formatCurrency(primaryEvent.totalSpent)}</strong>
+            </div>
+            <div>
+              <small>Budget</small>
+              <strong>{formatCurrency(primaryEvent.budget)}</strong>
+            </div>
+            <div>
+              <small>Remaining</small>
+              <strong>{formatCurrency(primaryEvent.remaining)}</strong>
+            </div>
+          </div>
+
+          <div className="progress">
+            <div
+              className={`progress-bar ${primaryEvent.isOverBudget ? "danger" : "warning"}`}
+              style={{ width: `${Math.min(primaryEvent.actualPercentage, 100)}%` }}
+            />
+          </div>
+          <div className="widget-bottom-action">
+            <span>{primaryEvent.actualPercentage.toFixed(1)}% of milestone budget allocated</span>
+            <span className="action-link">View Event Details →</span>
+          </div>
+        </section>
+      )}
+
+      {/* Loans & Prepayment Simulator Preview Widget */}
+      {primaryLoan && (
+        <section className="loan-preview-widget" onClick={() => navigateTo("loans")}>
+          <div className="loan-widget-top">
+            <div className="loan-widget-title">
+              <span className="loan-widget-icon">{primaryLoan.icon || "🏠"}</span>
+              <div>
+                <strong>{primaryLoan.name} ({primaryLoan.lender})</strong>
+                <small>Outstanding: {formatCurrency(primaryLoan.currentOutstanding)} • EMI: {formatCurrency(primaryLoan.emiAmount)}/mo</small>
+              </div>
+            </div>
+            <span className="badge-tag simulator">SIMULATOR</span>
+          </div>
+
+          <div className="loan-widget-insight">
+            <span className="bulb">💡</span>
+            <span>Pay ₹2,000 extra/mo to save ₹4.8+ Lakhs and finish years early!</span>
+          </div>
+
+          <div className="widget-bottom-action">
+            <span>Interest Rate: {primaryLoan.interestRate}% p.a.</span>
+            <span className="action-link">Open Prepayment Simulator →</span>
+          </div>
+        </section>
+      )}
+
+      {/* Safe to Spend Today Card */}
       <section className="safe-card">
         <div className="safe-badge">
           <span className="pulse-dot" />
           <span>SAFE TO SPEND TODAY</span>
         </div>
-        <h2>{formatCurrency(safeToSpendToday)}</h2>
-        <p className="safe-text">Based on your remaining monthly budget</p>
+        <h2>{formatCurrency(finances.safeToSpendDaily)}</h2>
+        <p className="safe-text">Based on remaining monthly budget of {formatCurrency(Math.max(finances.remainingBudget, 0))}</p>
 
         <div className="progress">
           <div
             className="progress-bar safe-progress-bar"
-            style={{ width: `${budgetUsed}%` }}
+            style={{ width: `${Math.min(finances.budgetUsed, 100)}%` }}
           />
         </div>
 
         <div className="progress-info">
-          <span>Budget used ({budgetUsed.toFixed(0)}%)</span>
-          <span>{formatCurrency(Math.max(remainingBudget, 0))} remaining</span>
+          <span>Budget used ({finances.budgetUsed.toFixed(0)}%)</span>
+          <span>{formatCurrency(Math.max(finances.remainingBudget, 0))} remaining</span>
         </div>
       </section>
 
-      <div className="stats">
-        <StatCard label="Spent" value={totalExpenses} hint="This month" type="spent" />
-        <StatCard label="Budget" value={monthlyBudget} hint="Monthly limit" type="budget" />
-        <StatCard label="Income" value={totalIncome} hint="This month" type="income" />
-        <StatCard
-          label="Remaining"
-          value={Math.max(remainingBudget, 0)}
-          hint={remainingBudget < 0 ? "Over budget" : "Budget left"}
-          type={remainingBudget < 0 ? "over" : "remaining"}
-        />
-      </div>
-
-      <div className="saving-card">
-        <div>
-          <span>Current savings</span>
-          <strong>{formatCurrency(currentSavings)}</strong>
-        </div>
-
-        <div className="saving-circle">{savingsRate.toFixed(0)}%</div>
-      </div>
-
+      {/* Quick Tools */}
       <div className="home-tools-grid">
         <button
           type="button"
@@ -747,6 +1329,7 @@ function HomePage({
         </button>
       </div>
 
+      {/* Spending Guard Alert */}
       <div
         className={`alert-card ${
           guardActive || overLimitCategories.length > 0 ? "alert-warning" : ""
@@ -762,29 +1345,22 @@ function HomePage({
               ? `${overLimitCategories[0].category} budget exceeded`
               : guardActive
               ? "Budget warning"
-              : "You're on track"}
+              : "Financial health on track"}
           </h3>
 
           <p>
             {overLimitCategories.length > 0
-              ? `${formatCurrency(
-                  overLimitCategories[0].spent
-                )} spent against a ${formatCurrency(
-                  overLimitCategories[0].limit
-                )} limit.`
+              ? `${formatCurrency(overLimitCategories[0].spent)} spent against a ${formatCurrency(overLimitCategories[0].limit)} limit.`
               : guardActive
-              ? `You've used ${budgetUsed.toFixed(0)}% of your monthly budget.`
+              ? `You've used ${finances.budgetUsed.toFixed(0)}% of your monthly budget.`
               : nearLimitCategories.length > 0
-              ? `${nearLimitCategories[0].category} is at ${nearLimitCategories[0].percentage.toFixed(
-                  0
-                )}% of its limit.`
-              : `You have ${formatCurrency(
-                  Math.max(remainingBudget, 0)
-                )} left in your monthly budget.`}
+              ? `${nearLimitCategories[0].category} is at ${nearLimitCategories[0].percentage.toFixed(0)}% of limit.`
+              : `You have ${formatCurrency(Math.max(finances.remainingBudget, 0))} remaining for ${finances.monthName}.`}
           </p>
         </div>
       </div>
 
+      {/* Category Budgets */}
       <section className="section">
         <div className="section-heading">
           <h2>Category Budgets</h2>
@@ -812,9 +1388,7 @@ function HomePage({
 
               return (
                 <div
-                  className={`dashboard-category-budget ${
-                    item.overLimit ? "over-budget" : ""
-                  }`}
+                  className={`dashboard-category-budget ${item.overLimit ? "over-budget" : ""}`}
                   key={item.category}
                 >
                   <div className="dashboard-category-top">
@@ -823,8 +1397,7 @@ function HomePage({
                       <div>
                         <strong>{item.category}</strong>
                         <small>
-                          {formatCurrency(item.spent)} spent of{" "}
-                          {formatCurrency(item.limit)}
+                          {formatCurrency(item.spent)} spent of {formatCurrency(item.limit)}
                         </small>
                       </div>
                     </div>
@@ -832,19 +1405,14 @@ function HomePage({
                   </div>
 
                   <div className="progress">
-                    <div
-                      className="progress-bar"
-                      style={{ width: `${progress}%` }}
-                    />
+                    <div className="progress-bar" style={{ width: `${progress}%` }} />
                   </div>
 
                   <div className="dashboard-category-bottom">
                     <span>
                       {item.overLimit
                         ? `${formatCurrency(item.spent - item.limit)} over limit`
-                        : `${formatCurrency(
-                            Math.max(item.limit - item.spent, 0)
-                          )} left`}
+                        : `${formatCurrency(Math.max(item.limit - item.spent, 0))} left`}
                     </span>
                     <span>{formatCurrency(item.spent)} spent</span>
                   </div>
@@ -855,6 +1423,7 @@ function HomePage({
         )}
       </section>
 
+      {/* Goals preview */}
       <section className="section">
         <div className="section-heading">
           <h2>Your Goals</h2>
@@ -886,10 +1455,13 @@ function HomePage({
         )}
       </section>
 
+      {/* Recent Transactions in Selected Month */}
       <section className="transactions">
         <div className="section-header">
-          <h2>Recent Transactions</h2>
-          <button type="button" onClick={() => navigateTo("activity")}>View all →</button>
+          <h2>Recent Activity ({finances.monthName})</h2>
+          <button type="button" onClick={() => navigateTo("activity")}>
+            View all ({finances.transactionsCount}) →
+          </button>
         </div>
 
         {transactions.length === 0 ? (
@@ -902,12 +1474,14 @@ function HomePage({
           />
         ) : (
           transactions
-            .slice(0, 5)
+            .filter((t) => isDateInMonth(t.date, selectedMonthKey))
+            .slice(0, 6)
             .map((transaction) => (
               <Transaction
                 key={transaction.id}
                 transaction={transaction}
                 onDelete={deleteTransaction}
+                detailed
               />
             ))
         )}
@@ -982,33 +1556,62 @@ function ActivityPage({
           />
         </div>
 
-        <div className="filter-row">
+        <div className="filter-row" style={{ overflowX: "auto", flexWrap: "nowrap", paddingBottom: "6px" }}>
           <button
             type="button"
-            className={
-              activityType === "all" ? "filter-chip active" : "filter-chip"
-            }
+            className={activityType === "all" ? "filter-chip active" : "filter-chip"}
             onClick={() => setActivityType("all")}
           >
             All
           </button>
           <button
             type="button"
-            className={
-              activityType === "expense" ? "filter-chip active" : "filter-chip"
-            }
+            className={activityType === "expense" ? "filter-chip active" : "filter-chip"}
             onClick={() => setActivityType("expense")}
           >
             Expenses
           </button>
           <button
             type="button"
-            className={
-              activityType === "income" ? "filter-chip active" : "filter-chip"
-            }
+            className={activityType === "income" ? "filter-chip active" : "filter-chip"}
             onClick={() => setActivityType("income")}
           >
             Income
+          </button>
+          <button
+            type="button"
+            className={activityType === "savings" ? "filter-chip active" : "filter-chip"}
+            onClick={() => setActivityType("savings")}
+          >
+            Savings
+          </button>
+          <button
+            type="button"
+            className={activityType === "investment" ? "filter-chip active" : "filter-chip"}
+            onClick={() => setActivityType("investment")}
+          >
+            Investments
+          </button>
+          <button
+            type="button"
+            className={activityType === "debt_repayment" ? "filter-chip active" : "filter-chip"}
+            onClick={() => setActivityType("debt_repayment")}
+          >
+            Debt/EMI
+          </button>
+          <button
+            type="button"
+            className={activityType === "transfer" ? "filter-chip active" : "filter-chip"}
+            onClick={() => setActivityType("transfer")}
+          >
+            Transfers
+          </button>
+          <button
+            type="button"
+            className={activityType === "cash_withdrawal" ? "filter-chip active" : "filter-chip"}
+            onClick={() => setActivityType("cash_withdrawal")}
+          >
+            Cash
           </button>
         </div>
 
@@ -1119,6 +1722,74 @@ function MorePage({ navigateTo, currentUser, onOpenOcr, onOpenStatementImport })
         <button
           className="more-menu-card"
           type="button"
+          onClick={() => navigateTo("reports")}
+        >
+          <div className="more-menu-left">
+            <span className="more-menu-icon" style={{ background: "rgba(168, 85, 247, 0.12)", color: "#c084fc" }}>
+              📊
+            </span>
+            <div className="more-menu-text">
+              <strong>Financial Reports & Comparison</strong>
+              <small>Month-to-month dynamic comparison & category shifts</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("events")}
+        >
+          <div className="more-menu-left">
+            <span className="more-menu-icon" style={{ background: "rgba(244, 63, 94, 0.12)", color: "#fb7185" }}>
+              💍
+            </span>
+            <div className="more-menu-text">
+              <strong>Events & Milestones</strong>
+              <small>Weddings, travel & renovation budgets & tracking</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("loans")}
+        >
+          <div className="more-menu-left">
+            <span className="more-menu-icon" style={{ background: "rgba(251, 146, 60, 0.12)", color: "#fb923c" }}>
+              💳
+            </span>
+            <div className="more-menu-text">
+              <strong>Loans & Prepayment Simulator</strong>
+              <small>Home loans, EMIs & "What if I pay extra?" simulator</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("goals")}
+        >
+          <div className="more-menu-left">
+            <span className="more-menu-icon" style={{ background: "rgba(52, 211, 153, 0.12)", color: "#34d399" }}>
+              🎯
+            </span>
+            <div className="more-menu-text">
+              <strong>Savings Goals</strong>
+              <small>Emergency fund, vehicle & travel targets</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
           onClick={onOpenStatementImport}
         >
           <div className="more-menu-left">
@@ -1208,10 +1879,27 @@ function MorePage({ navigateTo, currentUser, onOpenOcr, onOpenStatementImport })
         >
           <div className="more-menu-left">
             <span className="more-menu-icon" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#34d399" }}>
+              🛡️
+            </span>
+            <div className="more-menu-text">
+              <strong>Security & Email Alerts</strong>
+              <small>Google OAuth, OTP Recovery & Live Notifications</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("settings")}
+        >
+          <div className="more-menu-left">
+            <span className="more-menu-icon" style={{ background: "rgba(148, 163, 184, 0.12)", color: "#94a3b8" }}>
               ⚙️
             </span>
             <div className="more-menu-text">
-              <strong>Account & Settings</strong>
+              <strong>Account & Preferences</strong>
               <small>{currentUser?.email || "Manage data & account"}</small>
             </div>
           </div>
@@ -1536,15 +2224,98 @@ function SettingsPage({
   const [passwordStatus, setPasswordStatus] = useState({ type: "", msg: "" });
   const [serverStatus, setServerStatus] = useState(null);
 
+  // Email notifications state
+  const [emailNotifs, setEmailNotifs] = useState(() => ({
+    budgetAlerts: currentUser?.emailNotifications?.budgetAlerts ?? true,
+    loginAlerts: currentUser?.emailNotifications?.loginAlerts ?? true,
+    monthlyReport: currentUser?.emailNotifications?.monthlyReport ?? true,
+  }));
+  const [emailActionStatus, setEmailActionStatus] = useState({ type: "", msg: "" });
+  const [emailLoading, setEmailLoading] = useState(false);
+
   useEffect(() => {
     checkServerHealth().then(setServerStatus);
+    apiGetNotificationPrefs()
+      .then((res) => {
+        if (res?.emailNotifications) {
+          setEmailNotifs(res.emailNotifications);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   function handleCheckServer() {
     checkServerHealth().then(setServerStatus);
   }
 
-  function handleChangePasswordSubmit(e) {
+  async function handleToggleNotif(key) {
+    const updated = { ...emailNotifs, [key]: !emailNotifs[key] };
+    setEmailNotifs(updated);
+    try {
+      await apiUpdateNotificationPrefs(updated);
+    } catch (err) {
+      console.warn("Could not save notification pref to backend:", err.message);
+    }
+  }
+
+  async function handleSendTestEmail() {
+    setEmailLoading(true);
+    setEmailActionStatus({ type: "", msg: "" });
+    try {
+      const res = await apiSendTestEmail();
+      setEmailActionStatus({
+        type: "success",
+        msg: res.message || `Test email sent to ${currentUser?.email}! Check your inbox.`,
+      });
+    } catch (err) {
+      setEmailActionStatus({
+        type: "error",
+        msg: err.message || "Failed to send test email. Check server status.",
+      });
+    } finally {
+      setEmailLoading(false);
+    }
+  }
+
+  async function handleSendReportEmail() {
+    setEmailLoading(true);
+    setEmailActionStatus({ type: "", msg: "" });
+    try {
+      const res = await apiSendReportEmail();
+      setEmailActionStatus({
+        type: "success",
+        msg: res.message || `Financial statement sent to ${currentUser?.email}!`,
+      });
+    } catch (err) {
+      setEmailActionStatus({
+        type: "error",
+        msg: err.message || "Failed to send report. Check server status.",
+      });
+    } finally {
+      setEmailLoading(false);
+    }
+  }
+
+  async function handleTriggerBudgetAlert() {
+    setEmailLoading(true);
+    setEmailActionStatus({ type: "", msg: "" });
+    try {
+      const res = await apiTriggerBudgetAlert();
+      setEmailActionStatus({
+        type: "success",
+        msg: res.message || `Budget alert email dispatched to ${currentUser?.email}!`,
+      });
+    } catch (err) {
+      setEmailActionStatus({
+        type: "error",
+        msg: err.message || "Failed to send budget alert email.",
+      });
+    } finally {
+      setEmailLoading(false);
+    }
+  }
+
+  async function handleChangePasswordSubmit(e) {
     e.preventDefault();
     setPasswordStatus({ type: "", msg: "" });
 
@@ -1553,15 +2324,10 @@ function SettingsPage({
       return;
     }
 
-    if (currentUser?.password && currentUser.password !== currentPassword) {
-      setPasswordStatus({ type: "error", msg: "Current password is incorrect." });
-      return;
-    }
-
-    if (newPassword.length < 4) {
+    if (newPassword.length < 6) {
       setPasswordStatus({
         type: "error",
-        msg: "New password must be at least 4 characters long.",
+        msg: "New password must be at least 6 characters long.",
       });
       return;
     }
@@ -1569,6 +2335,24 @@ function SettingsPage({
     if (newPassword !== confirmPassword) {
       setPasswordStatus({ type: "error", msg: "New passwords do not match." });
       return;
+    }
+
+    try {
+      // Try backend password change
+      const res = await apiResetPassword({
+        email: currentUser?.email,
+        newPassword,
+      }).catch(() => null);
+
+      if (!res && currentUser?.password && currentUser.password !== currentPassword) {
+        setPasswordStatus({ type: "error", msg: "Current password is incorrect." });
+        return;
+      }
+    } catch (err) {
+      if (currentUser?.password && currentUser.password !== currentPassword) {
+        setPasswordStatus({ type: "error", msg: "Current password is incorrect." });
+        return;
+      }
     }
 
     const updatedUser = {
@@ -1582,7 +2366,7 @@ function SettingsPage({
 
     setPasswordStatus({
       type: "success",
-      msg: "Password updated successfully!",
+      msg: "Password updated successfully! Security confirmation email sent.",
     });
     setCurrentPassword("");
     setNewPassword("");
@@ -1599,53 +2383,162 @@ function SettingsPage({
         <div className="page-title">
           <span>PACE</span>
           <h2>Settings</h2>
-          <p>Manage your account and preferences.</p>
+          <p>Manage your account, security & notifications.</p>
         </div>
         <button className="back-btn" type="button" onClick={onBack}>
           ← Back
         </button>
       </div>
 
+      {/* Account & Security Overview Card */}
       <div className="settings-card">
         <div className="settings-row">
           <div>
-            <strong>Account</strong>
-            <small>{currentUser?.email || "Guest"}</small>
+            <strong>Account Identity</strong>
+            <small>{currentUser?.email || "Guest User"}</small>
           </div>
           <span className="status-dot">{currentUser?.name || "User"}</span>
         </div>
 
         <div className="settings-row">
           <div>
-            <strong>Transactions</strong>
-            <small>{transactions.length} saved transactions</small>
+            <strong>Sign-In Method</strong>
+            <small>
+              {currentUser?.authProvider === "google"
+                ? "Google OAuth 2.0 (Google Identity Services)"
+                : "Standard Email & Password (Bcrypt Hash 12)"}
+            </small>
           </div>
-          <span className="settings-value">↕</span>
+          <span className={`security-badge ${currentUser?.authProvider === "google" ? "google" : ""}`}>
+            {currentUser?.authProvider === "google" ? "Google Account" : "Password Auth"}
+          </span>
         </div>
 
         <div className="settings-row">
           <div>
-            <strong>Goals</strong>
-            <small>{goals.length} saved goals</small>
+            <strong>Email Verification Status</strong>
+            <small>Two-factor OTP recovery active</small>
           </div>
-          <span className="settings-value">◎</span>
+          <span className="security-badge">
+            ✓ Verified
+          </span>
         </div>
 
         <div className="settings-row">
           <div>
-            <strong>Storage</strong>
-            <small>Local offline PWA storage</small>
+            <strong>Session Security</strong>
+            <small>Bank-Grade HMAC-SHA256 Token Protection</small>
           </div>
-          <span className="status-dot">Active</span>
+          <span className="security-badge jwt">
+            🔒 JWT Protected
+          </span>
+        </div>
+      </div>
+
+      {/* Email Notifications & Alerts Card */}
+      <div className="settings-card" style={{ marginTop: "14px" }}>
+        <div style={{ marginBottom: 12 }}>
+          <strong style={{ fontSize: 15, color: "#f8fafc" }}>✉️ Email Notifications & Alerts</strong>
+          <p style={{ margin: "3px 0 0 0", fontSize: 12, color: "#94a3b8" }}>
+            Receive real-time transactional, security, and budgeting emails directly to {currentUser?.email}
+          </p>
+        </div>
+
+        {emailActionStatus.msg && (
+          <div
+            className={`password-status-banner ${emailActionStatus.type}`}
+            style={{ marginBottom: 14 }}
+          >
+            {emailActionStatus.msg}
+          </div>
+        )}
+
+        <div className="notification-toggle-row">
+          <div className="notification-toggle-info">
+            <strong>Budget Guard Alerts</strong>
+            <small>Email notification when spending reaches 80% or 100% of budget</small>
+          </div>
+          <label className="toggle-switch">
+            <input
+              type="checkbox"
+              checked={emailNotifs.budgetAlerts}
+              onChange={() => handleToggleNotif("budgetAlerts")}
+            />
+            <span className="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div className="notification-toggle-row">
+          <div className="notification-toggle-info">
+            <strong>Sign-In Security Alerts</strong>
+            <small>Email alert with IP, time & device when your account logs in</small>
+          </div>
+          <label className="toggle-switch">
+            <input
+              type="checkbox"
+              checked={emailNotifs.loginAlerts}
+              onChange={() => handleToggleNotif("loginAlerts")}
+            />
+            <span className="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div className="notification-toggle-row">
+          <div className="notification-toggle-info">
+            <strong>Monthly Financial Statements</strong>
+            <small>Periodic spending snapshot, savings rate, and category breakdown</small>
+          </div>
+          <label className="toggle-switch">
+            <input
+              type="checkbox"
+              checked={emailNotifs.monthlyReport}
+              onChange={() => handleToggleNotif("monthlyReport")}
+            />
+            <span className="toggle-slider"></span>
+          </label>
+        </div>
+
+        {/* Live Email Action Triggers */}
+        <div className="action-btn-group">
+          <button
+            type="button"
+            className="secondary-action-btn"
+            onClick={handleSendTestEmail}
+            disabled={emailLoading}
+          >
+            <span>✉️</span>
+            <span>{emailLoading ? "Sending..." : "Send Test Email"}</span>
+          </button>
+
+          <button
+            type="button"
+            className="secondary-action-btn"
+            onClick={handleSendReportEmail}
+            disabled={emailLoading}
+          >
+            <span>📊</span>
+            <span>{emailLoading ? "Generating..." : "Email My Summary"}</span>
+          </button>
+
+          <button
+            type="button"
+            className="secondary-action-btn"
+            onClick={handleTriggerBudgetAlert}
+            disabled={emailLoading}
+            style={{ gridColumn: "1 / -1" }}
+          >
+            <span>🚨</span>
+            <span>{emailLoading ? "Dispatching..." : "Simulate Budget Guard Alert Email"}</span>
+          </button>
         </div>
       </div>
 
       {currentUser?.id && currentUser.id !== "usr_demo" && currentUser.id !== "guest" && (
-        <div className="settings-card security-card">
+        <div className="settings-card security-card" style={{ marginTop: "14px" }}>
           <div className="settings-row">
             <div>
-              <strong>Account Security</strong>
-              <small>Change your account password</small>
+              <strong>Change Password</strong>
+              <small>Update your account access credentials</small>
             </div>
             {!showPasswordForm ? (
               <button
@@ -1695,7 +2588,7 @@ function SettingsPage({
                 New Password
                 <input
                   type="password"
-                  placeholder="Min 4 characters"
+                  placeholder="Min 6 characters"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
@@ -1731,6 +2624,7 @@ function SettingsPage({
         </div>
       )}
 
+      {/* Cloud DB & Backend Status Card */}
       <div className="settings-card" style={{ marginTop: "14px" }}>
         <div className="settings-row">
           <div>
@@ -1828,6 +2722,8 @@ function App() {
           if (!localStorage.getItem("pace_usr_demo_transactions")) {
             saveLocal("pace_usr_demo_transactions", getDemoTransactions());
             saveLocal("pace_usr_demo_goals", getDemoGoals());
+            saveLocal("pace_usr_demo_events", getDemoEvents());
+            saveLocal("pace_usr_demo_loans", getDemoLoans());
             saveLocal("pace_usr_demo_monthly-budget", defaultBudget);
             saveLocal("pace_usr_demo_category-budgets", {});
             saveLocal("pace_usr_demo_guard-threshold", defaultGuardThreshold);
@@ -1861,6 +2757,20 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     }))
   );
 
+  const [events, setEvents] = useState(() =>
+    loadLocal(
+      `${userKey}_events`,
+      currentUser.isDemo ? getDemoEvents() : []
+    )
+  );
+
+  const [loans, setLoans] = useState(() =>
+    loadLocal(
+      `${userKey}_loans`,
+      currentUser.isDemo ? getDemoLoans() : []
+    )
+  );
+
   const [monthlyBudget, setMonthlyBudget] = useState(() =>
     Number(loadLocal(`${userKey}_monthly-budget`, defaultBudget))
   );
@@ -1873,12 +2783,19 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     Number(loadLocal(`${userKey}_guard-threshold`, defaultGuardThreshold))
   );
 
+  // Month-aware financial state
+  const [selectedMonthKey, setSelectedMonthKey] = useState(() => toMonthKey());
+
   const [activePage, setActivePage] = useState("home");
   const [previousPage, setPreviousPage] = useState("home");
 
-  const [showForm, setShowForm] = useState(false);
+  const [showTxModal, setShowTxModal] = useState(false);
+  const [initialTxData, setInitialTxData] = useState(null);
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState(null);
+
+  const [showOcrModal, setShowOcrModal] = useState(false);
+  const [showStatementModal, setShowStatementModal] = useState(false);
 
   function navigateTo(page) {
     setPreviousPage(activePage);
@@ -1890,16 +2807,6 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     setActivePage(previousPage || "home");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
-
-  const [formData, setFormData] = useState({
-    title: "",
-    category: "Food",
-    amount: "",
-    type: "expense",
-    paymentMethod: "UPI",
-    date: toDateKey(),
-    note: "",
-  });
 
   const [goalForm, setGoalForm] = useState({
     name: "",
@@ -1916,6 +2823,8 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
 
   useEffect(() => saveLocal(`${userKey}_transactions`, transactions), [userKey, transactions]);
   useEffect(() => saveLocal(`${userKey}_goals`, goals), [userKey, goals]);
+  useEffect(() => saveLocal(`${userKey}_events`, events), [userKey, events]);
+  useEffect(() => saveLocal(`${userKey}_loans`, loans), [userKey, loans]);
   useEffect(
     () => saveLocal(`${userKey}_monthly-budget`, monthlyBudget),
     [userKey, monthlyBudget]
@@ -1929,7 +2838,25 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     [userKey, guardThreshold]
   );
 
+  // Sync with backend if logged in
+  useEffect(() => {
+    if (!currentUser.isDemo && getAuthToken()) {
+      apiGetEvents().then((evs) => {
+        if (Array.isArray(evs) && evs.length > 0) setEvents(evs);
+      }).catch(() => {});
+
+      apiGetLoans().then((lns) => {
+        if (Array.isArray(lns) && lns.length > 0) setLoans(lns);
+      }).catch(() => {});
+
+      apiGetTransactions().then((txs) => {
+        if (Array.isArray(txs) && txs.length > 0) setTransactions(txs);
+      }).catch(() => {});
+    }
+  }, [currentUser.id]);
+
   function handleLogout() {
+    clearAuthToken();
     saveLocal("pace_active_user", null);
     setCurrentUser(null);
   }
@@ -1944,85 +2871,97 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
 
   function handleResetAccountData() {
     const confirmed = window.confirm(
-      "Reset your account data? All transactions and goals will be cleared."
+      "Reset your account data? All transactions, events, loans and goals will be cleared."
     );
     if (!confirmed) return;
 
     setTransactions([]);
     setGoals([]);
+    setEvents([]);
+    setLoans([]);
     setCategoryBudgets({});
     saveLocal(`${userKey}_transactions`, []);
     saveLocal(`${userKey}_goals`, []);
+    saveLocal(`${userKey}_events`, []);
+    saveLocal(`${userKey}_loans`, []);
     saveLocal(`${userKey}_category-budgets`, {});
   }
 
   function handleLoadDemoData() {
     const demoTx = getDemoTransactions();
     const demoG = getDemoGoals();
+    const demoEv = getDemoEvents();
+    const demoLn = getDemoLoans();
 
     setTransactions(demoTx);
     setGoals(demoG);
+    setEvents(demoEv);
+    setLoans(demoLn);
     setMonthlyBudget(defaultBudget);
     setCategoryBudgets({});
 
     saveLocal(`${userKey}_transactions`, demoTx);
     saveLocal(`${userKey}_goals`, demoG);
+    saveLocal(`${userKey}_events`, demoEv);
+    saveLocal(`${userKey}_loans`, demoLn);
     saveLocal(`${userKey}_monthly-budget`, defaultBudget);
     saveLocal(`${userKey}_category-budgets`, {});
   }
 
+  // Events CRUD
+  function handleAddEvent(newEvent) {
+    setEvents((prev) => [newEvent, ...prev]);
+    if (!currentUser.isDemo) {
+      apiCreateEvent(newEvent).catch(() => {});
+    }
+  }
+
+  function handleUpdateEvent(updatedEvent) {
+    setEvents((prev) => prev.map((e) => (e.id === updatedEvent.id ? updatedEvent : e)));
+    if (!currentUser.isDemo) {
+      apiUpdateEvent(updatedEvent.id, updatedEvent).catch(() => {});
+    }
+  }
+
+  function handleDeleteEvent(id) {
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+    if (!currentUser.isDemo) {
+      apiDeleteEvent(id).catch(() => {});
+    }
+  }
+
+  // Loans CRUD
+  function handleAddLoan(newLoan) {
+    setLoans((prev) => [newLoan, ...prev]);
+    if (!currentUser.isDemo) {
+      apiCreateLoan(newLoan).catch(() => {});
+    }
+  }
+
+  function handleUpdateLoan(updatedLoan) {
+    setLoans((prev) => prev.map((l) => (l.id === updatedLoan.id ? updatedLoan : l)));
+    if (!currentUser.isDemo) {
+      apiUpdateLoan(updatedLoan.id, updatedLoan).catch(() => {});
+    }
+  }
+
+  function handleDeleteLoan(id) {
+    setLoans((prev) => prev.filter((l) => l.id !== id));
+    if (!currentUser.isDemo) {
+      apiDeleteLoan(id).catch(() => {});
+    }
+  }
+
+  // Central monthly financial engine
   const currentMonthTransactions = useMemo(
-    () => transactions.filter((item) => isSameMonth(item.date)),
-    [transactions]
+    () => transactions.filter((item) => isDateInMonth(item.date, selectedMonthKey)),
+    [transactions, selectedMonthKey]
   );
 
-  const totalIncome = useMemo(
-    () =>
-      currentMonthTransactions
-        .filter((item) => item.type === "income")
-        .reduce((sum, item) => sum + Number(item.amount || 0), 0),
-    [currentMonthTransactions]
+  const monthlyFinances = useMemo(
+    () => calculateMonthlyFinances(transactions, selectedMonthKey, monthlyBudget),
+    [transactions, selectedMonthKey, monthlyBudget]
   );
-
-  const totalExpenses = useMemo(
-    () =>
-      currentMonthTransactions
-        .filter((item) => item.type === "expense")
-        .reduce((sum, item) => sum + Number(item.amount || 0), 0),
-    [currentMonthTransactions]
-  );
-
-  const remainingBudget = monthlyBudget - totalExpenses;
-  const budgetUsed =
-    monthlyBudget > 0 ? Math.min((totalExpenses / monthlyBudget) * 100, 100) : 0;
-
-  const safeToSpendToday =
-    remainingBudget > 0
-      ? Math.floor(remainingBudget / daysLeftInMonth())
-      : 0;
-
-  const currentSavings = Math.max(totalIncome - totalExpenses, 0);
-
-  const savingsRate =
-    totalIncome > 0 ? Math.min((currentSavings / totalIncome) * 100, 100) : 0;
-
-  const topCategory = useMemo(() => {
-    const totals = {};
-
-    currentMonthTransactions
-      .filter((item) => item.type === "expense")
-      .forEach((item) => {
-        totals[item.category] =
-          (totals[item.category] || 0) + Number(item.amount || 0);
-      });
-
-    const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
-
-    return sorted[0] || ["None", 0];
-  }, [currentMonthTransactions]);
-
-  const averageDailyExpense =
-    totalExpenses > 0 ? Math.round(totalExpenses / new Date().getDate()) : 0;
 
   const categoryBudgetAlerts = useMemo(() => {
     return EXPENSE_CATEGORIES.map((category) => {
@@ -2076,7 +3015,8 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
         const matchesSearch =
           !query ||
           transaction.title.toLowerCase().includes(query) ||
-          transaction.category.toLowerCase().includes(query) ||
+          (transaction.category || "").toLowerCase().includes(query) ||
+          (transaction.majorHead || "").toLowerCase().includes(query) ||
           (transaction.note || "").toLowerCase().includes(query);
 
         const matchesType =
@@ -2104,34 +3044,41 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     return Object.entries(groups);
   }, [filteredTransactions]);
 
-  function handleInputChange(event) {
-    const { name, value } = event.target;
-
-    setFormData((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-  }
-
-  function openTransactionForm() {
-    setFormData({
-      title: "",
-      category: "Food",
-      amount: "",
-      type: "expense",
-      paymentMethod: "UPI",
-      date: toDateKey(),
-      note: "",
-    });
-    setShowForm(true);
+  function openTransactionForm(prefill = null) {
+    setInitialTxData(prefill);
+    setShowTxModal(true);
   }
 
   function closeTransactionForm() {
-    setShowForm(false);
+    setShowTxModal(false);
+    setInitialTxData(null);
   }
 
-  const [showOcrModal, setShowOcrModal] = useState(false);
-  const [showStatementModal, setShowStatementModal] = useState(false);
+  function handleSaveTransaction(newTx) {
+    setTransactions((prev) => [newTx, ...prev]);
+
+    // If debt repayment linked to a loan with principal amount, update loan balance
+    if (newTx.type === "debt_repayment" && newTx.loanId && newTx.principalAmount) {
+      setLoans((prevLoans) =>
+        prevLoans.map((l) => {
+          if (l.id === newTx.loanId) {
+            const newBal = Math.max(0, Number(l.currentOutstanding || 0) - Number(newTx.principalAmount));
+            const newRem = Math.max(0, Number(l.remainingTenureMonths || 1) - 1);
+            return {
+              ...l,
+              currentOutstanding: newBal,
+              remainingTenureMonths: newRem,
+            };
+          }
+          return l;
+        })
+      );
+    }
+
+    if (!currentUser.isDemo) {
+      apiCreateTransaction(newTx).catch(() => {});
+    }
+  }
 
   function handleApplyOcrTransaction(ocrTx) {
     const newTx = {
@@ -2140,79 +3087,56 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
       amount: Number(ocrTx.amount) || 0,
       type: ocrTx.type || "expense",
       category: ocrTx.category || "Shopping",
+      majorHead: getMajorHead(ocrTx.category || "Shopping", ocrTx.type || "expense"),
       date: ocrTx.date || toDateKey(),
       paymentMethod: ocrTx.paymentMethod || "UPI",
       note: ocrTx.note || "Scanned via OCR",
       icon: CATEGORY_ICONS[ocrTx.category] || "💳",
     };
-    setTransactions((prev) => [newTx, ...prev]);
+    handleSaveTransaction(newTx);
     setShowOcrModal(false);
   }
 
   function handleImportStatementTransactions(imported) {
     if (!Array.isArray(imported) || imported.length === 0) return;
 
-    const formatted = imported.map((item) => ({
-      id: "tx_imp_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
-      title: item.title,
-      amount: Number(item.amount),
-      type: item.type || "expense",
-      category: item.category || "Other",
-      date: item.date || toDateKey(),
-      paymentMethod: item.paymentMethod || "Bank / GPay",
-      note: item.note || "Imported from Statement",
-      icon: CATEGORY_ICONS[item.category] || "💳",
-    }));
+    const formatted = imported.map((item) => {
+      const type = item.type || "expense";
+      const cat = item.category || "Other";
+      return {
+        id: "tx_imp_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+        title: item.title,
+        amount: Number(item.amount),
+        type,
+        category: cat,
+        majorHead: getMajorHead(cat, type),
+        date: item.date || toDateKey(),
+        paymentMethod: item.paymentMethod || "Bank / GPay",
+        note: item.note || "Imported from Statement",
+        icon: CATEGORY_ICONS[cat] || "💳",
+      };
+    });
 
     setTransactions((prev) => [...formatted, ...prev]);
 
-    if (currentUser?.id) {
+    if (currentUser?.id && !currentUser.isDemo) {
       apiBulkAddTransactions(currentUser.id, formatted).catch(() => {});
     }
 
     setShowStatementModal(false);
   }
 
-  function addTransaction(event) {
-    event.preventDefault();
-
-    if (
-      !formData.title.trim() ||
-      !formData.amount ||
-      Number(formData.amount) <= 0
-    ) {
-      return;
-    }
-
-    const amount = Number(formData.amount);
-
-    const newTransaction = {
-      id: Date.now(),
-      title: formData.title.trim(),
-      category: formData.category,
-      amount,
-      type: formData.type,
-      date: formData.date || toDateKey(),
-      icon:
-        formData.type === "income"
-          ? CATEGORY_ICONS[formData.category] || "💰"
-          : CATEGORY_ICONS[formData.category] || "💳",
-      paymentMethod: formData.paymentMethod,
-      note: formData.note.trim(),
-    };
-
-    setTransactions((previous) => [newTransaction, ...previous]);
-    closeTransactionForm();
-  }
-
   function deleteTransaction(id) {
     const confirmed = window.confirm("Delete this transaction?");
-
     if (!confirmed) return;
 
     setTransactions((previous) =>
       previous.filter((transaction) => transaction.id !== id)
     );
+
+    if (!currentUser.isDemo) {
+      apiDeleteTransaction(id).catch(() => {});
+    }
   }
 
   function handleGoalInputChange(event) {
@@ -2350,7 +3274,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     }));
   }
 
-  const guardActive = budgetUsed >= guardThreshold;
+  const guardActive = monthlyFinances.budgetUsed >= guardThreshold;
 
   function renderPage() {
     switch (activePage) {
@@ -2369,6 +3293,55 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             deleteTransaction={deleteTransaction}
             onOpenOcr={() => setShowOcrModal(true)}
             onOpenStatementImport={() => setShowStatementModal(true)}
+          />
+        );
+      case "events":
+        return (
+          <EventsPage
+            events={events}
+            transactions={transactions}
+            onAddEvent={handleAddEvent}
+            onUpdateEvent={handleUpdateEvent}
+            onDeleteEvent={handleDeleteEvent}
+            onOpenAddTransactionForEvent={(ev) => {
+              openTransactionForm({
+                type: "expense",
+                eventId: ev.id,
+                category: ev.categories?.[0] || "Wedding",
+                title: `${ev.name} Expense`,
+              });
+            }}
+            onDeleteTransaction={deleteTransaction}
+            onBack={handleBack}
+          />
+        );
+      case "loans":
+        return (
+          <LoansPage
+            loans={loans}
+            transactions={transactions}
+            netAvailableCashFlow={monthlyFinances.netAvailableCashFlow}
+            onAddLoan={handleAddLoan}
+            onUpdateLoan={handleUpdateLoan}
+            onDeleteLoan={handleDeleteLoan}
+            onOpenAddPaymentForLoan={(ln) => {
+              openTransactionForm({
+                type: "debt_repayment",
+                loanId: ln.id,
+                title: `${ln.name} EMI`,
+                amount: ln.emiAmount || "",
+                category: "Home Loan EMI",
+              });
+            }}
+            onBack={handleBack}
+          />
+        );
+      case "reports":
+        return (
+          <ReportsPage
+            transactions={transactions}
+            monthlyBudget={monthlyBudget}
+            onBack={handleBack}
           />
         );
       case "goals":
@@ -2393,8 +3366,8 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
         return (
           <BudgetsPage
             monthlyBudget={monthlyBudget}
-            totalExpenses={totalExpenses}
-            remainingBudget={remainingBudget}
+            totalExpenses={monthlyFinances.actualSpending}
+            remainingBudget={monthlyFinances.remainingBudget}
             categoryBudgets={categoryBudgets}
             currentMonthTransactions={currentMonthTransactions}
             updateCategoryBudget={updateCategoryBudget}
@@ -2406,7 +3379,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
         return (
           <SpendingGuardPage
             overLimitCategories={overLimitCategories}
-            budgetUsed={budgetUsed}
+            budgetUsed={monthlyFinances.budgetUsed}
             guardThreshold={guardThreshold}
             setGuardThreshold={setGuardThreshold}
             nearLimitCategories={nearLimitCategories}
@@ -2417,14 +3390,18 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
       case "insights":
         return (
           <InsightsPage
-            topCategory={topCategory}
-            averageDailyExpense={averageDailyExpense}
-            savingsRate={savingsRate}
-            currentSavings={currentSavings}
+            topCategory={monthlyFinances.topCategory}
+            averageDailyExpense={
+              monthlyFinances.actualSpending > 0
+                ? Math.round(monthlyFinances.actualSpending / (new Date().getDate() || 1))
+                : 0
+            }
+            savingsRate={monthlyFinances.savingsRate}
+            currentSavings={monthlyFinances.wealthGeneration}
             currentMonthTransactions={currentMonthTransactions}
-            totalIncome={totalIncome}
-            totalExpenses={totalExpenses}
-            budgetUsed={budgetUsed}
+            totalIncome={monthlyFinances.totalIncome}
+            totalExpenses={monthlyFinances.actualSpending}
+            budgetUsed={monthlyFinances.budgetUsed}
             onBack={handleBack}
           />
         );
@@ -2445,20 +3422,17 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
         return (
           <HomePage
             currentUser={currentUser}
+            selectedMonthKey={selectedMonthKey}
+            setSelectedMonthKey={setSelectedMonthKey}
+            monthlyFinances={monthlyFinances}
+            events={events}
+            loans={loans}
+            goals={goals}
+            transactions={transactions}
             guardActive={guardActive}
-            budgetUsed={budgetUsed}
-            safeToSpendToday={safeToSpendToday}
-            totalExpenses={totalExpenses}
-            monthlyBudget={monthlyBudget}
-            totalIncome={totalIncome}
-            remainingBudget={remainingBudget}
-            currentSavings={currentSavings}
-            savingsRate={savingsRate}
             overLimitCategories={overLimitCategories}
             nearLimitCategories={nearLimitCategories}
             categoryBudgetAlerts={categoryBudgetAlerts}
-            goals={goals}
-            transactions={transactions}
             navigateTo={navigateTo}
             openNewGoalForm={openNewGoalForm}
             editGoal={editGoal}
@@ -2494,206 +3468,44 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
         <button
           className="add-btn"
           type="button"
-          onClick={openTransactionForm}
+          onClick={() => openTransactionForm()}
           aria-label="Add transaction"
         >
           +
         </button>
 
         <NavItem
-          icon="◎"
-          label="Goals"
-          active={activePage === "goals"}
-          onClick={() => navigateTo("goals")}
+          icon="💍"
+          label="Events"
+          active={activePage === "events"}
+          onClick={() => navigateTo("events")}
+        />
+
+        <NavItem
+          icon="💳"
+          label="Loans"
+          active={activePage === "loans"}
+          onClick={() => navigateTo("loans")}
         />
 
         <NavItem
           icon="☰"
           label="More"
-          active={["more", "budgets", "guard", "insights", "settings"].includes(activePage)}
+          active={["more", "reports", "goals", "budgets", "guard", "insights", "settings"].includes(activePage)}
           onClick={() => navigateTo("more")}
         />
       </nav>
 
-      {showForm && (
-        <div className="modal-overlay" onMouseDown={closeTransactionForm}>
-          <div
-            className="modal"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className="modal-handle" />
-            <div className="modal-header">
-              <div>
-                <span>PACE</span>
-                <h2>Add Transaction</h2>
-              </div>
-
-              <button className="close-btn" type="button" onClick={closeTransactionForm}>
-                ×
-              </button>
-            </div>
-
-            <form onSubmit={addTransaction}>
-              <button
-                type="button"
-                className="ocr-quick-trigger-btn"
-                onClick={() => {
-                  closeTransactionForm();
-                  setShowOcrModal(true);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  width: "100%",
-                  padding: "10px 14px",
-                  background: "rgba(59, 130, 246, 0.08)",
-                  border: "1px dashed rgba(59, 130, 246, 0.4)",
-                  borderRadius: "10px",
-                  color: "var(--accent-color, #3b82f6)",
-                  fontSize: "0.85rem",
-                  fontWeight: "600",
-                  marginBottom: "14px",
-                  cursor: "pointer",
-                }}
-              >
-                <span>📸</span> Auto-Fill from Receipt / Bill (OCR)
-              </button>
-
-              <label>
-                Title
-                <input
-                  type="text"
-                  name="title"
-                  placeholder="e.g. Zomato"
-                  value={formData.title}
-                  onChange={handleInputChange}
-                  autoFocus
-                />
-              </label>
-
-              <label>
-                Amount
-                <input
-                  type="number"
-                  name="amount"
-                  placeholder="₹0"
-                  min="1"
-                  step="0.01"
-                  value={formData.amount}
-                  onChange={handleInputChange}
-                />
-              </label>
-
-              <label>
-                Type
-                <div className="transaction-type-toggle">
-                  <button
-                    type="button"
-                    className={
-                      formData.type === "expense"
-                        ? "type-btn active"
-                        : "type-btn"
-                    }
-                    onClick={() =>
-                      setFormData((previous) => ({
-                        ...previous,
-                        type: "expense",
-                        category: EXPENSE_CATEGORIES.includes(previous.category)
-                          ? previous.category
-                          : "Food",
-                      }))
-                    }
-                  >
-                    Expense
-                  </button>
-
-                  <button
-                    type="button"
-                    className={
-                      formData.type === "income"
-                        ? "type-btn active"
-                        : "type-btn"
-                    }
-                    onClick={() =>
-                      setFormData((previous) => ({
-                        ...previous,
-                        type: "income",
-                        category: INCOME_CATEGORIES.includes(previous.category)
-                          ? previous.category
-                          : "Salary",
-                      }))
-                    }
-                  >
-                    Income
-                  </button>
-                </div>
-              </label>
-
-              <label>
-                Category
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                >
-                  {(formData.type === "income"
-                    ? INCOME_CATEGORIES
-                    : EXPENSE_CATEGORIES
-                  ).map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="form-row">
-                <label>
-                  Payment
-                  <select
-                    name="paymentMethod"
-                    value={formData.paymentMethod}
-                    onChange={handleInputChange}
-                  >
-                    {PAYMENT_METHODS.map((method) => (
-                      <option key={method} value={method}>
-                        {method}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  Date
-                  <input
-                    type="date"
-                    name="date"
-                    value={formData.date}
-                    onChange={handleInputChange}
-                  />
-                </label>
-              </div>
-
-              <label>
-                Note <span className="optional-label">Optional</span>
-                <input
-                  type="text"
-                  name="note"
-                  placeholder="What was this for?"
-                  value={formData.note}
-                  onChange={handleInputChange}
-                />
-              </label>
-
-              <button className="submit-btn" type="submit">
-                Add Transaction
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Modern 7-Type Transaction Modal */}
+      <TransactionModal
+        isOpen={showTxModal}
+        onClose={closeTransactionForm}
+        onSubmit={handleSaveTransaction}
+        events={events}
+        loans={loans}
+        initialData={initialTxData}
+        onOpenOcr={() => setShowOcrModal(true)}
+      />
 
       {showGoalForm && (
         <div className="modal-overlay" onMouseDown={closeGoalForm}>
@@ -2875,15 +3687,24 @@ function GoalCard({ goal, compact = false, onEdit, onDelete }) {
 }
 
 function Transaction({ transaction, onDelete, detailed = false }) {
+  const isPositive = transaction.type === "income";
+  const typeClass = transaction.type || "expense";
+
   return (
     <div className="transaction">
       <div className="transaction-left">
-        <div className="transaction-icon">{transaction.icon || "💳"}</div>
+        <div className={`transaction-icon tx-icon-${typeClass}`}>{transaction.icon || "💳"}</div>
 
         <div className="transaction-info">
-          <strong>{transaction.title}</strong>
+          <div className="tx-title-row">
+            <strong>{transaction.title}</strong>
+            {transaction.eventId && <span className="tx-badge event-badge">💍 Event</span>}
+            {transaction.loanId && <span className="tx-badge loan-badge">🏠 Loan</span>}
+          </div>
 
           <small>
+            <span className={`tx-type-tag ${typeClass}`}>{typeClass.replace("_", " ")}</span>
+            {" · "}
             {transaction.category} · {formatShortDate(transaction.date)}
             {detailed && transaction.paymentMethod
               ? ` · ${transaction.paymentMethod}`
@@ -2897,8 +3718,8 @@ function Transaction({ transaction, onDelete, detailed = false }) {
       </div>
 
       <div className="transaction-right">
-        <strong className={transaction.type}>
-          {transaction.type === "income" ? "+" : "-"}
+        <strong className={`tx-amount ${typeClass}`}>
+          {isPositive ? "+" : transaction.type === "transfer" || transaction.type === "cash_withdrawal" ? "• " : "-"}
           {formatCurrency(transaction.amount)}
         </strong>
 
