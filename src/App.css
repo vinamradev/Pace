@@ -124,6 +124,7 @@ button {
   letter-spacing: 4px;
   background: linear-gradient(135deg, #ffffff 30%, #a1a1aa 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   line-height: 1.1;
 }
@@ -231,8 +232,10 @@ button {
   font-weight: 800;
   letter-spacing: -1.5px;
   background: linear-gradient(180deg, #ffffff 30%, #d4d4d8 100%);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  color: transparent;
   line-height: 1.08;
   word-break: break-word;
 }
@@ -4520,7 +4523,9 @@ button {
 }
 
 .logo-png {
-  width: 110px;
+  width: 100px;
   height: auto;
-  border-radius: 10px;
+  border-radius: 25px;
+  object-fit: cover;
+
 }
