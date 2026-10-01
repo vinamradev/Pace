@@ -4517,3 +4517,9 @@ button {
 .tx-amount.cash_withdrawal {
   color: #94a3b8;
 }
+
+.logo-png {
+  width: 110px;
+  height: auto;
+  border-radius: 10px;
+}
