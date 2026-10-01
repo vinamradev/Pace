@@ -2437,7 +2437,7 @@ function SettingsPage({
 
       {/* Email Notifications & Alerts Card */}
       <div className="settings-card" style={{ marginTop: "14px" }}>
-        <div style={{ marginBottom: 12 }}>
+        <div className="settings-row" style={{ marginBottom: 12 }}>
           <strong style={{ fontSize: 15, color: "#f8fafc" }}>✉️ Email Notifications & Alerts</strong>
           <p style={{ margin: "3px 0 0 0", fontSize: 12, color: "#94a3b8" }}>
             Receive real-time transactional, security, and budgeting emails directly to {currentUser?.email}
