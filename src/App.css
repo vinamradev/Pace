@@ -2000,6 +2000,7 @@ button {
   letter-spacing: 6px;
   margin: 0 0 6px;
   background: linear-gradient(180deg, #ffffff 30%, #a1a1aa 100%);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   line-height: 1.1;
