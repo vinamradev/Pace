@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import PaceLogo from "./components/PaceLogo";
 import GoogleSignInButton from "./components/GoogleSignInButton";
+import ReceiptScannerModal from "./components/ReceiptScannerModal";
 import StatementImportModal from "./components/StatementImportModal";
 
 import EventsPage from "./components/EventsPage";
@@ -21,6 +22,7 @@ import {
   getMajorHead,
 } from "./utils/financialEngine";
 import {
+  checkServerHealth,
   apiBulkAddTransactions,
   apiLogin,
   apiRegister,
@@ -28,7 +30,9 @@ import {
   apiVerifyOtp,
   apiResetPassword,
   clearAuthToken,
+  apiSendTestEmail,
   apiSendReportEmail,
+  apiTriggerBudgetAlert,
   apiGetNotificationPrefs,
   apiUpdateNotificationPrefs,
   apiGetEvents,
@@ -686,108 +690,53 @@ function AuthScreen({ onLogin }) {
 
 function HomePage({
   currentUser,
+ 
   monthlyFinances,
   goals = [],
-  loans = [],
-  transactions = [],
+  categoryBudgetAlerts = [],
   navigateTo,
+  openNewGoalForm,
+  editGoal,
+  deleteGoal,
 }) {
   const userInitial = currentUser?.name
     ? currentUser.name.charAt(0).toUpperCase()
     : "P";
 
   const finances = monthlyFinances || {};
+
   const netAvailable = Number(finances.netAvailableCashFlow || 0);
   const totalIncome = Number(finances.totalIncome || 0);
   const actualSpending = Number(finances.actualSpending || 0);
-  const committedOutflows = Number(finances.committedOutflows || 0);
-  const remainingBudget = Math.max(Number(finances.remainingBudget || 0), 0);
-  const safeToSpendToday = Math.max(Number(finances.safeToSpendDaily || 0), 0);
+  const remainingBudget = Math.max(
+    Number(finances.remainingBudget || 0),
+    0,
+  );
+  const safeToSpendToday = Math.max(
+    Number(finances.safeToSpendDaily || 0),
+    0,
+  );
 
   const spendingPercentage =
     totalIncome > 0
       ? Math.min((actualSpending / totalIncome) * 100, 100)
       : 0;
 
-  const recentTransactions = [...transactions]
-    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
-    .slice(0, 4);
-
-  const savingsTotal = transactions
-    .filter((transaction) => transaction.type === "savings")
-    .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount || 0)), 0);
-
-  const financeShortcuts = [
-    {
-      key: "savings",
-      icon: "💰",
-      title: "Savings",
-      value: formatCurrency(savingsTotal),
-      meta: "Total recorded",
-      tone: "green",
-      onClick: () => navigateTo("savings"),
-    },
-    {
-      key: "emi",
-      icon: "💳",
-      title: "EMI",
-      value: formatCurrency(finances.totalDebtRepayment || 0),
-      meta: "Loan repayments",
-      tone: "coral",
-      onClick: () => navigateTo("loans"),
-    },
-    {
-      key: "loans",
-      icon: "🏦",
-      title: "Loans",
-      value: `${loans.length} active`,
-      meta: "Manage loans",
-      tone: "purple",
-      onClick: () => navigateTo("loans"),
-    },
-    {
-      key: "budget",
-      icon: "▣",
-      title: "Budget",
-      value: formatCurrency(remainingBudget),
-      meta: "Remaining this month",
-      tone: "blue",
-      onClick: () => navigateTo("budgets"),
-    },
-    {
-      key: "goals",
-      icon: "🎯",
-      title: "Goals",
-      value: `${goals.length} active`,
-      meta: "Savings targets",
-      tone: "orange",
-      onClick: () => navigateTo("goals"),
-    },
-    {
-      key: "review",
-      icon: "🗓️",
-      title: "Monthly Review",
-      value: "View",
-      meta: "10-part review",
-      tone: "pink",
-      onClick: () => navigateTo("monthly-review"),
-    },
-    {
-      key: "reports",
-      icon: "▥",
-      title: "Reports",
-      value: "View",
-      meta: "Trends & insights",
-      tone: "lavender",
-      onClick: () => navigateTo("reports"),
-    },
-  ];
+  const isSurplus = netAvailable >= 0;
 
   return (
     <div className="page-content home-page pace-dashboard">
+      {/* ================================================================
+          HEADER
+          ================================================================ */}
       <header className="dashboard-header">
         <div className="dashboard-brand">
-          <PaceLogo size={46} variant="tile" className="dashboard-logo" />
+          <PaceLogo
+            size={46}
+            variant="tile"
+            className="dashboard-logo"
+          />
+
           <div>
             <h1>PACE</h1>
             <p>Spend with intention. Save with purpose.</p>
@@ -798,28 +747,43 @@ function HomePage({
           type="button"
           className="dashboard-profile-btn"
           onClick={() => navigateTo("settings")}
-          aria-label="Open settings"
+          aria-label="Open profile and settings"
         >
           {currentUser?.picture ? (
-            <img src={currentUser.picture} alt="" />
+            <img
+              src={currentUser.picture}
+              alt=""
+            />
           ) : (
             <span>{userInitial}</span>
           )}
         </button>
       </header>
 
+      
+
+      {/* ================================================================
+          NET AVAILABLE BALANCE
+          ================================================================ */}
       <section className="dashboard-balance-card">
         <div className="dashboard-balance-top">
           <div>
-            <span className="dashboard-eyebrow">NET AVAILABLE BALANCE</span>
-            <h2 className={netAvailable >= 0 ? "positive" : "negative"}>
+            <span className="dashboard-eyebrow">
+              NET AVAILABLE BALANCE
+            </span>
+
+            <h2 className={isSurplus ? "positive" : "negative"}>
               {formatCurrency(netAvailable)}
             </h2>
-            <p>After upcoming bills & commitments</p>
           </div>
-          <span className={`dashboard-balance-status ${netAvailable >= 0 ? "positive" : "negative"}`}>
-            {netAvailable >= 0 ? "Available" : "Overcommitted"}
-          </span>
+
+          <div
+            className={`dashboard-balance-status ${
+              isSurplus ? "positive" : "negative"
+            }`}
+          >
+            {isSurplus ? "Available" : "Overcommitted"}
+          </div>
         </div>
 
         <div className="dashboard-balance-breakdown">
@@ -827,285 +791,276 @@ function HomePage({
             <span>Income</span>
             <strong>{formatCurrency(totalIncome)}</strong>
           </div>
-          <div>
-            <span>Spending</span>
-            <strong>{formatCurrency(actualSpending)}</strong>
-          </div>
+
           <div>
             <span>Committed</span>
-            <strong>{formatCurrency(committedOutflows)}</strong>
+            <strong>
+              {formatCurrency(
+                Number(finances.committedOutflows || 0),
+              )}
+            </strong>
           </div>
         </div>
       </section>
 
-      <section className="dashboard-overview-grid">
-        <div className="dashboard-spending-card">
-          <div className="dashboard-card-heading">
-            <div>
-              <span className="dashboard-section-kicker">THIS MONTH</span>
-              <h2>Spending</h2>
-            </div>
-            <button type="button" onClick={() => navigateTo("activity")}>See all →</button>
+      {/* ================================================================
+          REMAINING / CATEGORY BUDGETS
+          ================================================================ */}
+      <section className="dashboard-section">
+        <div className="dashboard-section-heading">
+          <div>
+            <span className="dashboard-section-kicker">
+              THIS MONTH
+            </span>
+            <h2>Remaining Budget</h2>
           </div>
 
-          <div className="dashboard-spending-content">
+          <button
+            type="button"
+            className="dashboard-link"
+            onClick={() => navigateTo("budgets")}
+          >
+            Manage
+          </button>
+        </div>
+
+        <div className="dashboard-budget-card">
+          <div className="dashboard-budget-main">
+            <div>
+              <span>Available to plan</span>
+              <strong>{formatCurrency(remainingBudget)}</strong>
+            </div>
+
+            <div className="dashboard-budget-icon">
+              ₹
+            </div>
+          </div>
+
+          <div className="dashboard-progress">
             <div
-              className="dashboard-spending-ring"
-              style={{ "--spending-progress": `${spendingPercentage}%` }}
-            >
-              <div>
-                <strong>{spendingPercentage.toFixed(0)}%</strong>
-                <span>spent</span>
-              </div>
-            </div>
-            <div className="dashboard-spending-total">
-              <span>Actual spending</span>
-              <strong>{formatCurrency(actualSpending)}</strong>
-              <small>{formatCurrency(Math.max(totalIncome - actualSpending, 0))} income remaining</small>
-            </div>
+              className="dashboard-progress-fill"
+              style={{
+                width: `${Math.min(
+                  Number(finances.budgetUsed || 0),
+                  100,
+                )}%`,
+              }}
+            />
+          </div>
+
+          <div className="dashboard-progress-meta">
+            <span>
+              {Number(finances.budgetUsed || 0).toFixed(0)}% used
+            </span>
+            <span>
+              {formatCurrency(remainingBudget)} left
+            </span>
           </div>
         </div>
 
-        <div className="dashboard-safe-card">
-          <div className="dashboard-card-heading">
-            <div>
-              <span className="dashboard-section-kicker">TODAY</span>
-              <h2>Safe to Spend</h2>
-            </div>
-            <span className="dashboard-safe-icon">✓</span>
-          </div>
-          <strong className="dashboard-safe-amount">{formatCurrency(safeToSpendToday)}</strong>
-          <p>Based on your remaining monthly budget.</p>
-          <div className="dashboard-safe-meta">
-            <span>{formatCurrency(remainingBudget)} remaining</span>
-          </div>
-        </div>
-      </section>
+        {categoryBudgetAlerts.length > 0 && (
+          <div className="dashboard-category-list">
+            {categoryBudgetAlerts.slice(0, 3).map((item) => {
+              const percentage = Number(item.percentage || 0);
 
-      <section className="dashboard-section dashboard-finances-section">
-        <div className="dashboard-section-heading">
-          <div>
-            <span className="dashboard-section-kicker">QUICK ACCESS</span>
-            <h2>Your Finances</h2>
-          </div>
-        </div>
-
-        <div className="dashboard-finance-grid">
-          {financeShortcuts.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className={`dashboard-finance-card ${item.tone}`}
-              onClick={item.onClick}
-            >
-              <span className="dashboard-finance-icon">{item.icon}</span>
-              <span className="dashboard-finance-copy">
-                <strong>{item.title}</strong>
-                <b>{item.value}</b>
-                <small>{item.meta}</small>
-              </span>
-              <span className="dashboard-finance-arrow">›</span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="dashboard-section dashboard-recent-section">
-        <div className="dashboard-section-heading">
-          <div>
-            <span className="dashboard-section-kicker">LATEST</span>
-            <h2>Recent Activity</h2>
-          </div>
-          <button type="button" className="dashboard-link" onClick={() => navigateTo("activity")}>See all →</button>
-        </div>
-
-        {recentTransactions.length === 0 ? (
-          <div className="dashboard-empty-activity">
-            <span>↕</span>
-            <div>
-              <strong>No activity yet</strong>
-              <small>Your latest transactions will appear here.</small>
-            </div>
-          </div>
-        ) : (
-          <div className="dashboard-recent-list">
-            {recentTransactions.map((transaction) => {
-              const isIncome = transaction.type === "income";
-              const isPositive = isIncome;
-              const amount = formatCurrency(Math.abs(Number(transaction.amount || 0)));
-              const icon = CATEGORY_ICONS[transaction.category] || (isIncome ? "↗" : "₹");
               return (
                 <button
+                  key={item.category}
                   type="button"
-                  className="dashboard-recent-row"
-                  key={transaction.id}
-                  onClick={() => navigateTo("activity")}
+                  className="dashboard-category-card"
+                  onClick={() => navigateTo("budgets")}
                 >
-                  <span className="dashboard-recent-icon">{icon}</span>
-                  <span className="dashboard-recent-copy">
-                    <strong>{transaction.title || transaction.category || "Transaction"}</strong>
-                    <small>{transaction.category || transaction.type || "Transaction"}</small>
-                  </span>
-                  <strong className={isPositive ? "amount-positive" : "amount-negative"}>
-                    {isPositive ? "+" : "−"} {amount}
-                  </strong>
+                  <div className="dashboard-category-info">
+                    <span className="dashboard-category-icon">
+                      {CATEGORY_ICONS[item.category] || "₹"}
+                    </span>
+
+                    <div>
+                      <strong>{item.category}</strong>
+                      <small>
+                        {formatCurrency(item.spent)} of{" "}
+                        {formatCurrency(item.limit)}
+                      </small>
+                    </div>
+                  </div>
+
+                  <div className="dashboard-category-value">
+                    <strong>{percentage.toFixed(0)}%</strong>
+
+                    <div className="dashboard-mini-progress">
+                      <span
+                        style={{
+                          width: `${Math.min(
+                            percentage,
+                            100,
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
                 </button>
               );
             })}
           </div>
         )}
-      </section>
-    </div>
-  );
-}
 
-function SavingsPage({
-  transactions = [],
-  goals = [],
-  openTransactionForm,
-  navigateTo,
-}) {
-  const savingsTransactions = transactions
-    .filter((tx) => tx.type === "savings")
-    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+        {categoryBudgetAlerts.length === 0 && (
+          <div className="dashboard-empty-budget">
+            <span>＋</span>
 
-  const totalSaved = savingsTransactions.reduce(
-    (sum, tx) => sum + Math.abs(Number(tx.amount || 0)),
-    0,
-  );
+            <div>
+              <strong>No category budgets yet</strong>
+              <small>
+                Set category limits to keep your spending intentional.
+              </small>
+            </div>
 
-  return (
-    <div className="page-content page finance-page">
-      <div className="page-title-row">
-        <div className="page-title">
-          <span>PACE</span>
-          <h2>Savings</h2>
-          <p>Money you've intentionally set aside.</p>
-        </div>
-        <button className="goal-add-btn" type="button" onClick={() => openTransactionForm({ type: "savings" })}>
-          + Add saving
-        </button>
-      </div>
-
-      <section className="finance-summary-card savings-summary-card">
-        <span className="card-label">TOTAL SAVED</span>
-        <strong>{formatCurrency(totalSaved)}</strong>
-        <small>{savingsTransactions.length} saving {savingsTransactions.length === 1 ? "entry" : "entries"}</small>
-      </section>
-
-      <section className="finance-section-card">
-        <div className="finance-section-heading">
-          <div>
-            <span className="dashboard-section-kicker">PURPOSE</span>
-            <h3>Savings Goals</h3>
+            <button
+              type="button"
+              onClick={() => navigateTo("budgets")}
+            >
+              Set up
+            </button>
           </div>
-          <button type="button" className="text-btn" onClick={() => navigateTo("goals")}>Manage</button>
+        )}
+      </section>
+
+      {/* ================================================================
+          THIS MONTH'S SPENDING
+          ================================================================ */}
+      <section className="dashboard-section">
+        <div className="dashboard-section-heading">
+          <div>
+            <span className="dashboard-section-kicker">
+              SPENDING
+            </span>
+            <h2>This Month</h2>
+          </div>
+
+          <button
+            type="button"
+            className="dashboard-link"
+            onClick={() => navigateTo("activity")}
+          >
+            View all
+          </button>
         </div>
+
+        <div className="dashboard-spending-card">
+          <div className="dashboard-spending-chart">
+            <div
+              className="dashboard-spending-ring"
+              style={{
+                "--spending-progress": `${spendingPercentage}%`,
+              }}
+            >
+              <div>
+                <strong>
+                  {spendingPercentage.toFixed(0)}%
+                </strong>
+                <span>spent</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="dashboard-spending-summary">
+            <span>Actual spending</span>
+
+            <strong>
+              {formatCurrency(actualSpending)}
+            </strong>
+
+            <small>
+              {formatCurrency(
+                Math.max(totalIncome - actualSpending, 0),
+              )}{" "}
+              of income remaining after spending
+            </small>
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================================
+          SAFE TO SPEND
+          ================================================================ */}
+      <section className="dashboard-safe-card">
+        <div className="dashboard-safe-header">
+          <div>
+            <span className="dashboard-eyebrow">
+              TODAY
+            </span>
+
+            <h2>Safe to Spend</h2>
+          </div>
+
+          <div className="dashboard-safe-icon">
+            ✓
+          </div>
+        </div>
+
+        <strong className="dashboard-safe-amount">
+          {formatCurrency(safeToSpendToday)}
+        </strong>
+
+        <p>
+          Daily amount based on your remaining monthly budget.
+        </p>
+      </section>
+
+      {/* ================================================================
+          GOALS
+          ================================================================ */}
+      <section className="dashboard-section">
+        <div className="dashboard-section-heading">
+          <div>
+            <span className="dashboard-section-kicker">
+              FUTURE
+            </span>
+            <h2>Your Goals</h2>
+          </div>
+
+          <button
+            type="button"
+            className="dashboard-link"
+            onClick={() => navigateTo("goals")}
+          >
+            View all
+          </button>
+        </div>
+
         {goals.length === 0 ? (
-          <EmptyState
-            icon="🎯"
-            title="No savings goals yet"
-            text="Create a goal when you want a specific purpose for your savings."
-            action="Create goal"
-            onAction={() => navigateTo("add")}
-          />
+          <div className="dashboard-empty-goals">
+            <div className="dashboard-goal-empty-icon">
+              🎯
+            </div>
+
+            <div>
+              <strong>No goals yet</strong>
+              <small>
+                Create a goal and give your savings a purpose.
+              </small>
+            </div>
+
+            <button
+              type="button"
+              onClick={openNewGoalForm}
+            >
+              + Create Goal
+            </button>
+          </div>
         ) : (
-          <div className="goals-list">
+          <div className="dashboard-goals-list">
             {goals.slice(0, 3).map((goal) => (
-              <GoalCard key={goal.id} goal={goal} compact />
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                compact
+                onEdit={editGoal}
+                onDelete={deleteGoal}
+              />
             ))}
           </div>
         )}
-      </section>
-
-      <section className="finance-section-card">
-        <div className="finance-section-heading">
-          <div>
-            <span className="dashboard-section-kicker">HISTORY</span>
-            <h3>Recent savings</h3>
-          </div>
-          <button type="button" className="text-btn" onClick={() => navigateTo("activity")}>See all</button>
-        </div>
-        {savingsTransactions.length === 0 ? (
-          <EmptyState
-            icon="💰"
-            title="No savings recorded"
-            text="Your savings entries will appear here after you add them."
-            action="Add saving"
-            onAction={() => openTransactionForm({ type: "savings" })}
-          />
-        ) : (
-          <div className="transactions activity-list">
-            {savingsTransactions.slice(0, 5).map((tx) => (
-              <Transaction key={tx.id} transaction={tx} detailed />
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-function AddPage({ navigateTo, openTransactionForm, openNewGoalForm }) {
-  const transactionActions = [
-    ["💸", "Expense", "Record money spent", "expense"],
-    ["💰", "Income", "Record money received", "income"],
-    ["🏦", "Savings", "Move money into savings", "savings"],
-    ["📈", "Investment", "Record an investment", "investment"],
-    ["💳", "Debt / EMI", "Record a loan repayment", "debt_repayment"],
-    ["↔", "Transfer", "Move money between accounts", "transfer"],
-    ["💵", "Cash withdrawal", "Move money into cash", "cash_withdrawal"],
-  ];
-
-  const planActions = [
-    ["🎯", "Goal", "Set a savings target", () => openNewGoalForm()],
-    ["💰", "Budget", "Set your monthly spending plan", () => navigateTo("budgets")],
-    ["📅", "Event", "Create an event budget", () => navigateTo("events")],
-    ["💳", "Loan", "Add a loan or EMI plan", () => navigateTo("loans")],
-  ];
-
-  return (
-    <div className="page-content page add-page">
-      <div className="page-title">
-        <span>PACE</span>
-        <h2>Add</h2>
-        <p>Record money or set up a financial plan.</p>
-      </div>
-
-      <section className="add-section">
-        <div className="finance-section-heading">
-          <div>
-            <span className="dashboard-section-kicker">MONEY</span>
-            <h3>Add transaction</h3>
-          </div>
-        </div>
-        <div className="add-action-grid">
-          {transactionActions.map(([icon, title, meta, type]) => (
-            <button key={type} type="button" className="add-action-card" onClick={() => openTransactionForm({ type })}>
-              <span className="add-action-icon">{icon}</span>
-              <span><strong>{title}</strong><small>{meta}</small></span>
-              <b>›</b>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="add-section">
-        <div className="finance-section-heading">
-          <div>
-            <span className="dashboard-section-kicker">PLANS</span>
-            <h3>Set up a plan</h3>
-          </div>
-        </div>
-        <div className="add-action-grid">
-          {planActions.map(([icon, title, meta, onClick]) => (
-            <button key={title} type="button" className="add-action-card" onClick={onClick}>
-              <span className="add-action-icon">{icon}</span>
-              <span><strong>{title}</strong><small>{meta}</small></span>
-              <b>›</b>
-            </button>
-          ))}
-        </div>
       </section>
     </div>
   );
@@ -1121,8 +1076,10 @@ function ActivityPage({
   groupedTransactions,
   availableCategories,
   openTransactionForm,
-  onOpenStatementImport,
+  
   deleteTransaction,
+  onOpenOcr,
+  onOpenStatementImport,
 }) {
   return (
     <div className="page-content page">
@@ -1133,14 +1090,41 @@ function ActivityPage({
           <p>All your transactions.</p>
         </div>
 
-        <div className="page-title-actions">
-          <button className="secondary-action-btn compact" type="button" onClick={onOpenStatementImport}>
-            Import
-          </button>
-          <button className="goal-add-btn" type="button" onClick={openTransactionForm}>
-            + Add
-          </button>
-        </div>
+        <button
+          className="goal-add-btn"
+          type="button"
+          onClick={openTransactionForm}
+        >
+          + Add
+        </button>
+      </div>
+
+      <div className="home-tools-grid">
+        <button
+          type="button"
+          className="home-tool-card ocr"
+          onClick={onOpenOcr}
+        >
+          <div className="home-tool-icon">📸</div>
+          <div className="home-tool-content">
+            <strong>Scan Bill (OCR)</strong>
+            <small>Coming in V2</small>
+          </div>
+          <span className="home-tool-arrow">→</span>
+        </button>
+
+        <button
+          type="button"
+          className="home-tool-card stmt"
+          onClick={onOpenStatementImport}
+        >
+          <div className="home-tool-icon">📑</div>
+          <div className="home-tool-content">
+            <strong>Bank / GPay</strong>
+            <small>PDF, Excel, Screen</small>
+          </div>
+          <span className="home-tool-arrow">→</span>
+        </button>
       </div>
 
       <div className="activity-toolbar">
@@ -1257,18 +1241,14 @@ function ActivityPage({
 
       {groupedTransactions.length === 0 ? (
         <EmptyState
-          icon={activitySearch || activityType !== "all" || activityCategory !== "all" ? "🔎" : "🧾"}
-          title={activitySearch || activityType !== "all" || activityCategory !== "all" ? "Nothing found" : "No transactions yet"}
-          text={activitySearch || activityType !== "all" || activityCategory !== "all" ? "Try adjusting your search or filters." : "Your income, spending, savings and other money movements will appear here."}
-          action={activitySearch || activityType !== "all" || activityCategory !== "all" ? "Clear filters" : "Add transaction"}
+          icon="🔎"
+          title="Nothing found"
+          text="Try adding a transaction or adjust your filter."
+          action="Clear filters"
           onAction={() => {
-            if (activitySearch || activityType !== "all" || activityCategory !== "all") {
-              setActivitySearch("");
-              setActivityType("all");
-              setActivityCategory("all");
-            } else {
-              openTransactionForm();
-            }
+            setActivitySearch("");
+            setActivityType("all");
+            setActivityCategory("all");
           }}
         />
       ) : (
@@ -1339,6 +1319,299 @@ function GoalsPage({ goals, openNewGoalForm, editGoal, deleteGoal }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function MorePage({
+  navigateTo,
+  currentUser,
+  onOpenOcr,
+  onOpenStatementImport,
+}) {
+  return (
+    <div className="page-content page">
+      <div className="page-title">
+        <span>PACE</span>
+        <h2>More</h2>
+        <p>Tools, budgets & preferences</p>
+      </div>
+
+      <div className="more-menu-list">
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("reports")}
+        >
+          <div className="more-menu-left">
+            <span
+              className="more-menu-icon"
+              style={{
+                background: "rgba(168, 85, 247, 0.12)",
+                color: "#c084fc",
+              }}
+            >
+              📊
+            </span>
+            <div className="more-menu-text">
+              <strong>Financial Reports & Comparison</strong>
+              <small>Month-to-month dynamic comparison & category shifts</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("events")}
+        >
+          <div className="more-menu-left">
+            <span
+              className="more-menu-icon"
+              style={{
+                background: "rgba(244, 63, 94, 0.12)",
+                color: "#fb7185",
+              }}
+            >
+              💍
+            </span>
+            <div className="more-menu-text">
+              <strong>Events & Milestones</strong>
+              <small>Weddings, travel & renovation budgets & tracking</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("loans")}
+        >
+          <div className="more-menu-left">
+            <span
+              className="more-menu-icon"
+              style={{
+                background: "rgba(251, 146, 60, 0.12)",
+                color: "#fb923c",
+              }}
+            >
+              💳
+            </span>
+            <div className="more-menu-text">
+              <strong>Loans & Prepayment Simulator</strong>
+              <small>Home loans, EMIs & "What if I pay extra?" simulator</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("goals")}
+        >
+          <div className="more-menu-left">
+            <span
+              className="more-menu-icon"
+              style={{
+                background: "rgba(52, 211, 153, 0.12)",
+                color: "#34d399",
+              }}
+            >
+              🎯
+            </span>
+            <div className="more-menu-text">
+              <strong>Savings Goals</strong>
+              <small>Emergency fund, vehicle & travel targets</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={onOpenStatementImport}
+        >
+          <div className="more-menu-left">
+            <span
+              className="more-menu-icon"
+              style={{
+                background: "rgba(59, 130, 246, 0.12)",
+                color: "#60a5fa",
+              }}
+            >
+              📑
+            </span>
+            <div className="more-menu-text">
+              <strong>Bank & GPay Statement</strong>
+              <small>
+                Statement import available · SMS parser coming in V2
+              </small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button className="more-menu-card" type="button" onClick={onOpenOcr}>
+          <div className="more-menu-left">
+            <span
+              className="more-menu-icon"
+              style={{
+                background: "rgba(236, 72, 153, 0.12)",
+                color: "#f472b6",
+              }}
+            >
+              📸
+            </span>
+            <div className="more-menu-text">
+              <strong>Scan Bill / Receipt (OCR)</strong>
+              <small>Coming in V2</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("budgets")}
+        >
+          <div className="more-menu-left">
+            <span
+              className="more-menu-icon"
+              style={{
+                background: "rgba(99, 102, 241, 0.12)",
+                color: "#818cf8",
+              }}
+            >
+              💰
+            </span>
+            <div className="more-menu-text">
+              <strong>Category Budgets</strong>
+              <small>Set & track limits for Food, Shopping & more</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("guard")}
+        >
+          <div className="more-menu-left">
+            <span
+              className="more-menu-icon"
+              style={{
+                background: "rgba(245, 158, 11, 0.12)",
+                color: "#fbbf24",
+              }}
+            >
+              🛡
+            </span>
+            <div className="more-menu-text">
+              <strong>Spending Guard</strong>
+              <small>Real-time budget alerts & safety thresholds</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("insights")}
+        >
+          <div className="more-menu-left">
+            <span
+              className="more-menu-icon"
+              style={{
+                background: "rgba(6, 182, 212, 0.12)",
+                color: "#38bdf8",
+              }}
+            >
+              📊
+            </span>
+            <div className="more-menu-text">
+              <strong>Monthly Insights</strong>
+              <small>Spending habits, daily averages & trends</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("monthly-review")}
+        >
+          <div className="more-menu-left">
+            <span
+              className="more-menu-icon"
+              style={{
+                background: "rgba(168, 85, 247, 0.12)",
+                color: "#c084fc",
+              }}
+            >
+              🗓️
+            </span>
+            <div className="more-menu-text">
+              <strong>Monthly Financial Review</strong>
+              <small>10-point audit, cashflow breakdown & estimates</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("settings")}
+        >
+          <div className="more-menu-left">
+            <span
+              className="more-menu-icon"
+              style={{
+                background: "rgba(16, 185, 129, 0.12)",
+                color: "#34d399",
+              }}
+            >
+              🛡️
+            </span>
+            <div className="more-menu-text">
+              <strong>Security & Email Alerts</strong>
+              <small>Google OAuth, OTP Recovery & Live Notifications</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+
+        <button
+          className="more-menu-card"
+          type="button"
+          onClick={() => navigateTo("settings")}
+        >
+          <div className="more-menu-left">
+            <span
+              className="more-menu-icon"
+              style={{
+                background: "rgba(148, 163, 184, 0.12)",
+                color: "#94a3b8",
+              }}
+            >
+              ⚙️
+            </span>
+            <div className="more-menu-text">
+              <strong>Account & Preferences</strong>
+              <small>{currentUser?.email || "Manage data & account"}</small>
+            </div>
+          </div>
+          <span className="more-menu-arrow">→</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -1644,8 +1917,11 @@ function SettingsPage({
   goals = [],
   events = [],
   loans = [],
+  monthlyBudget = 0,
+  setMonthlyBudget,
   onLogout,
   onResetAccountData,
+  onOpenStatementImport,
   onBack,
   onUpdateUser,
 }) {
@@ -1654,7 +1930,10 @@ function SettingsPage({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordStatus, setPasswordStatus] = useState({ type: "", msg: "" });
+  const [serverStatus, setServerStatus] = useState(null);
+
   // Financial preferences local state
+  const [budgetInput, setBudgetInput] = useState(monthlyBudget || 0);
   const [defaultPaymentMethod, setDefaultPaymentMethod] = useState("UPI");
   
 
@@ -1678,6 +1957,7 @@ function SettingsPage({
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
+    checkServerHealth().then(setServerStatus);
     apiGetNotificationPrefs()
       .then((res) => {
         if (res?.emailNotifications) {
@@ -1687,6 +1967,10 @@ function SettingsPage({
       .catch(() => {});
   }, []);
 
+  function handleCheckServer() {
+    checkServerHealth().then(setServerStatus);
+  }
+
   async function handleToggleNotif(key) {
     const updated = { ...emailNotifs, [key]: !emailNotifs[key] };
     setEmailNotifs(updated);
@@ -1694,6 +1978,27 @@ function SettingsPage({
       await apiUpdateNotificationPrefs(updated);
     } catch (err) {
       console.warn("Could not save notification pref to backend:", err.message);
+    }
+  }
+
+  async function handleSendTestEmail() {
+    setEmailLoading(true);
+    setEmailActionStatus({ type: "", msg: "" });
+    try {
+      const res = await apiSendTestEmail();
+      setEmailActionStatus({
+        type: "success",
+        msg:
+          res.message ||
+          `Test email sent to ${currentUser?.email}! Check your inbox.`,
+      });
+    } catch (err) {
+      setEmailActionStatus({
+        type: "error",
+        msg: err.message || "Failed to send test email. Check server status.",
+      });
+    } finally {
+      setEmailLoading(false);
     }
   }
 
@@ -1711,6 +2016,27 @@ function SettingsPage({
       setEmailActionStatus({
         type: "error",
         msg: err.message || "Failed to send report. Check server status.",
+      });
+    } finally {
+      setEmailLoading(false);
+    }
+  }
+
+  async function handleTriggerBudgetAlert() {
+    setEmailLoading(true);
+    setEmailActionStatus({ type: "", msg: "" });
+    try {
+      const res = await apiTriggerBudgetAlert();
+      setEmailActionStatus({
+        type: "success",
+        msg:
+          res.message ||
+          `Budget alert email dispatched to ${currentUser?.email}!`,
+      });
+    } catch (err) {
+      setEmailActionStatus({
+        type: "error",
+        msg: err.message || "Failed to send budget alert email.",
       });
     } finally {
       setEmailLoading(false);
@@ -1788,6 +2114,33 @@ function SettingsPage({
     }, 2200);
   }
 
+  async function handleSaveBudget(e) {
+    e.preventDefault();
+
+    const val = Number(budgetInput);
+
+    if (!val || val <= 0) {
+      alert("Monthly budget must be a positive number.");
+      return;
+    }
+
+    try {
+      const res = await apiUpdateBudget({
+        monthlyBudget: val,
+      });
+
+      if (!res?.success) {
+        throw new Error(res?.message || "Failed to update budget.");
+      }
+
+      setMonthlyBudget(val);
+
+      alert("Monthly budget updated to ₹" + val.toLocaleString("en-IN"));
+    } catch (error) {
+      console.error("Failed to update monthly budget:", error);
+      alert(error.message || "Failed to update monthly budget.");
+    }
+  }
   function handlePaymentMethodChange(e) {
   const val = e.target.value;
   setDefaultPaymentMethod(val);
@@ -1851,7 +2204,7 @@ function SettingsPage({
         <div className="page-title">
           <span>PACE</span>
           <h2>Settings</h2>
-          <p>Account, preferences & privacy control.</p>
+          <p>Account security, financial preferences & privacy control.</p>
         </div>
         <button className="back-btn" type="button" onClick={onBack}>
           ← Back
@@ -2028,11 +2381,11 @@ function SettingsPage({
         </div>
       </section>
 
-      {/* SECTION 2: PREFERENCES */}
+      {/* SECTION 2: FINANCIAL PREFERENCES */}
       <section className="settings-section" style={{ marginTop: 20 }}>
         <div className="section-title-sm">
-          <span>2. PREFERENCES</span>
-          <small>Currency & transaction defaults</small>
+          <span>2. FINANCE & PREFERENCES</span>
+          <small>Currency, monthly budget & payment defaults</small>
         </div>
 
         <div className="settings-card">
@@ -2044,14 +2397,70 @@ function SettingsPage({
             <span className="security-badge">INR (₹)</span>
           </div>
 
+          <div
+            className="settings-row"
+            style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}
+          >
+            <div>
+              <strong>Monthly Spending Budget</strong>
+              <small>
+                Base budget used for Safe-to-Spend & Spending Guard calculations
+              </small>
+            </div>
+            <form
+              onSubmit={handleSaveBudget}
+              style={{ display: "flex", gap: 10, marginTop: 4 }}
+            >
+              <input
+                type="number"
+                min="1000"
+                step="500"
+                value={budgetInput}
+                onChange={(e) => setBudgetInput(e.target.value)}
+                style={{
+                  flex: 1,
+                  background: "rgba(15, 23, 42, 0.6)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  color: "#f8fafc",
+                  fontSize: 14,
+                }}
+              />
+              <button
+                type="submit"
+                style={{
+                  background: "#10b981",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "8px 16px",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+              >
+                Save
+              </button>
+            </form>
+          </div>
+
           <div className="settings-row">
             <div>
               <strong>Default Payment Method</strong>
-              <small>Pre-selected when adding a new transaction</small>
+              <small>Pre-selected method when logging new transactions</small>
             </div>
             <select
               value={defaultPaymentMethod}
               onChange={handlePaymentMethodChange}
+              style={{
+                background: "rgba(15, 23, 42, 0.8)",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
+                color: "#f8fafc",
+                borderRadius: 8,
+                padding: "6px 12px",
+                fontSize: 13,
+              }}
             >
               {PAYMENT_METHODS.map((pm) => (
                 <option key={pm} value={pm}>
@@ -2136,11 +2545,36 @@ function SettingsPage({
             <button
               type="button"
               className="secondary-action-btn"
+              onClick={handleSendTestEmail}
+              disabled={emailLoading}
+            >
+              <span>✉️</span>
+              <span>{emailLoading ? "Sending..." : "Send Test Email"}</span>
+            </button>
+
+            <button
+              type="button"
+              className="secondary-action-btn"
               onClick={handleSendReportEmail}
               disabled={emailLoading}
             >
               <span>📊</span>
               <span>{emailLoading ? "Generating..." : "Email My Summary"}</span>
+            </button>
+
+            <button
+              type="button"
+              className="secondary-action-btn"
+              onClick={handleTriggerBudgetAlert}
+              disabled={emailLoading}
+              style={{ gridColumn: "1 / -1" }}
+            >
+              <span>🚨</span>
+              <span>
+                {emailLoading
+                  ? "Dispatching..."
+                  : "Simulate Budget Guard Alert Email"}
+              </span>
             </button>
           </div>
         </div>
@@ -2154,6 +2588,22 @@ function SettingsPage({
         </div>
 
         <div className="settings-card">
+          <div className="settings-row">
+            <div>
+              <strong>Bank / GPay Statement Import</strong>
+              <small>
+                Bulk import transactions from PDF, Excel or Screenshots
+              </small>
+            </div>
+            <button
+              className="text-btn"
+              type="button"
+              onClick={onOpenStatementImport}
+            >
+              Import Statement
+            </button>
+          </div>
+
           <div className="settings-row">
             <div>
               <strong>Export Transactions (CSV)</strong>
@@ -2217,28 +2667,64 @@ function SettingsPage({
         </div>
       </section>
 
-      {/* SECTION 5: ABOUT & PRIVACY */}
+      {/* SECTION 5: ABOUT PACE & DATABASE STATUS */}
       <section className="settings-section" style={{ marginTop: 20 }}>
         <div className="section-title-sm">
-          <span>5. ABOUT & PRIVACY</span>
-          <small>PACE information & privacy controls</small>
+          <span>5. ABOUT PACE & DATABASE STATUS</span>
+          <small>Application build information & cloud status</small>
         </div>
 
         <div className="settings-card">
           <div className="settings-row">
             <div>
-              <strong>Data Privacy</strong>
-              <small>Your financial records are isolated to your account.</small>
+              <strong>Database & Cloud Sync</strong>
+              <small>
+                {serverStatus?.online && serverStatus?.database?.connected
+                  ? "Connected to MongoDB Atlas Replica Set (Transactions Active)"
+                  : serverStatus?.online
+                    ? "Backend Server Online (Connecting to MongoDB...)"
+                    : "Local PWA Mode (Run 'npm run server' for MongoDB)"}
+              </small>
             </div>
-            <span className="security-badge">🔒 Private</span>
+            <span
+              className={
+                serverStatus?.online && serverStatus?.database?.connected
+                  ? "status-dot active"
+                  : "status-dot"
+              }
+            >
+              {serverStatus?.online && serverStatus?.database?.connected
+                ? "🟢 MongoDB Active"
+                : "🟡 Local PWA"}
+            </span>
           </div>
 
           <div className="settings-row">
             <div>
-              <strong>PACE Version</strong>
-              <small>Personal finance companion</small>
+              <strong>Backend Server API</strong>
+              <small style={{ wordBreak: "break-all" }}>
+                {import.meta.env.VITE_API_BASE_URL ||
+                  "http://localhost:5000/api"}
+              </small>
             </div>
-            <span className="security-badge">v1.0</span>
+            <button
+              className="text-btn"
+              type="button"
+              onClick={handleCheckServer}
+            >
+              Test Connection
+            </button>
+          </div>
+
+          <div className="settings-row">
+            <div>
+              <strong>Data Privacy & Isolation Guarantee</strong>
+              <small>
+                Zero third-party tracking. Financial records are 100% private to
+                your user ID.
+              </small>
+            </div>
+            <span className="security-badge">🔒 100% Private</span>
           </div>
         </div>
       </section>
@@ -2491,24 +2977,73 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
   // Month-aware financial state
   const [selectedMonthKey, setSelectedMonthKey] = useState(() => toMonthKey());
 
-  const [activePage, setActivePage] = useState("home");
-  const [previousPage, setPreviousPage] = useState("home");
+  const [activePage, setActivePage] = useState(() => {
+    const state = window.history.state;
+    return state?.pace === true ? state.page || "home" : "home";
+  });
 
   const [showTxModal, setShowTxModal] = useState(false);
   const [initialTxData, setInitialTxData] = useState(null);
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState(null);
 
+  const [showOcrModal, setShowOcrModal] = useState(false);
   const [showStatementModal, setShowStatementModal] = useState(false);
 
+  // ---------------------------------------------------------------------------
+  // PACE NAVIGATION
+  // Uses the browser history as the single source of truth so that: 
+  // - PACE page navigation works normally
+  // - Browser Back works
+  // - Android/iOS browser back works
+  // - In-app Back buttons work
+  // - Multi-level navigation is preserved
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const currentState = window.history.state;
+
+    if (!currentState?.pace) {
+      window.history.replaceState(
+        { pace: true, page: activePage || "home" },
+        "",
+        window.location.href,
+      );
+    }
+
+    const handlePopState = (event) => {
+      const page = event.state?.pace ? event.state.page || "home" : "home";
+      setActivePage(page);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
   function navigateTo(page) {
-    setPreviousPage(activePage);
+    if (!page || page === activePage) return;
+
     setActivePage(page);
+
+    window.history.pushState(
+      { pace: true, page },
+      "",
+      window.location.href,
+    );
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function handleBack() {
-    setActivePage(previousPage || "home");
+    if (window.history.state?.pace) {
+      window.history.back();
+      return;
+    }
+
+    setActivePage("home");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -2848,6 +3383,26 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     setTransactions((prev) => [newTx, ...prev]);
   }
 
+  function handleApplyOcrTransaction(ocrTx) {
+    const newTx = {
+      id: Date.now(),
+      title: ocrTx.title || "Bill Expense",
+      amount: Number(ocrTx.amount) || 0,
+      type: ocrTx.type || "expense",
+      category: ocrTx.category || "Shopping",
+      majorHead: getMajorHead(
+        ocrTx.category || "Shopping",
+        ocrTx.type || "expense",
+      ),
+      date: ocrTx.date || toDateKey(),
+      paymentMethod: ocrTx.paymentMethod || "UPI",
+      note: ocrTx.note || "Scanned via OCR",
+      icon: CATEGORY_ICONS[ocrTx.category] || "💳",
+    };
+    handleSaveTransaction(newTx);
+    setShowOcrModal(false);
+  }
+
   function handleImportStatementTransactions(imported) {
     if (!Array.isArray(imported) || imported.length === 0) return;
 
@@ -3042,23 +3597,6 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
 
   function renderPage() {
     switch (activePage) {
-      case "add":
-        return (
-          <AddPage
-            navigateTo={navigateTo}
-            openTransactionForm={openTransactionForm}
-            openNewGoalForm={openNewGoalForm}
-          />
-        );
-      case "savings":
-        return (
-          <SavingsPage
-            transactions={transactions}
-            goals={goals}
-            openTransactionForm={openTransactionForm}
-            navigateTo={navigateTo}
-          />
-        );
       case "activity":
         return (
           <ActivityPage
@@ -3071,8 +3609,10 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             groupedTransactions={groupedTransactions}
             availableCategories={availableCategories}
             openTransactionForm={openTransactionForm}
-            onOpenStatementImport={() => setShowStatementModal(true)}
+            editTransaction={openTransactionForm}
             deleteTransaction={deleteTransaction}
+            onOpenOcr={() => window.alert("Receipt Scanner is coming in V2.")}
+            onOpenStatementImport={() => setShowStatementModal(true)}
           />
         );
       case "events":
@@ -3131,6 +3671,15 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             openNewGoalForm={openNewGoalForm}
             editGoal={editGoal}
             deleteGoal={deleteGoal}
+          />
+        );
+      case "more":
+        return (
+          <MorePage
+            navigateTo={navigateTo}
+            currentUser={currentUser}
+            onOpenOcr={() => window.alert("Receipt Scanner is coming in V2.")}
+            onOpenStatementImport={() => setShowStatementModal(true)}
           />
         );
       case "budgets":
@@ -3207,8 +3756,11 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             goals={goals}
             events={events}
             loans={loans}
+            monthlyBudget={monthlyBudget}
+            setMonthlyBudget={setMonthlyBudget}
             onLogout={handleLogout}
             onResetAccountData={handleResetAccountData}
+            onOpenStatementImport={() => setShowStatementModal(true)}
             onBack={handleBack}
             onUpdateUser={handleUpdateUser}
           />
@@ -3217,11 +3769,26 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
         return (
           <HomePage
             currentUser={currentUser}
+            selectedMonthKey={selectedMonthKey}
+            setSelectedMonthKey={setSelectedMonthKey}
             monthlyFinances={monthlyFinances}
-            goals={goals}
+            events={events}
             loans={loans}
+            goals={goals}
             transactions={transactions}
+            guardActive={guardActive}
+            overLimitCategories={overLimitCategories}
+            nearLimitCategories={nearLimitCategories}
+            categoryBudgetAlerts={categoryBudgetAlerts}
             navigateTo={navigateTo}
+            openNewGoalForm={openNewGoalForm}
+            editGoal={editGoal}
+            deleteGoal={deleteGoal}
+            openTransactionForm={openTransactionForm}
+            editTransaction={openTransactionForm}
+            deleteTransaction={deleteTransaction}
+            onOpenOcr={() => window.alert("Receipt Scanner is coming in V2.")}
+            onOpenStatementImport={() => setShowStatementModal(true)}
           />
         );
     }
@@ -3231,7 +3798,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     <div className="app">
       <main>{renderPage()}</main>
 
-      <nav className="bottom-nav" aria-label="Primary navigation">
+      <nav className="bottom-nav">
         <NavItem
           icon="⌂"
           label="Home"
@@ -3249,15 +3816,14 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
         <button
           className="add-btn"
           type="button"
-          onClick={() => navigateTo("add")}
-          aria-label="Add"
+          onClick={() => openTransactionForm()}
+          aria-label="Add transaction"
         >
-          <span>+</span>
-          <small>Add</small>
+          +
         </button>
 
         <NavItem
-          icon="◫"
+          icon="💍"
           label="Events"
           active={activePage === "events"}
           onClick={() => navigateTo("events")}
@@ -3270,6 +3836,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
           onClick={() => navigateTo("settings")}
         />
       </nav>
+
       {/* Modern 7-Type Transaction Modal */}
       <TransactionModal
         isOpen={showTxModal}
@@ -3278,6 +3845,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
         events={events}
         loans={loans}
         initialData={initialTxData}
+        onOpenOcr={() => window.alert("Receipt Scanner is coming in V2.")}
       />
 
       {showGoalForm && (
@@ -3386,6 +3954,12 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
           </div>
         </div>
       )}
+
+      <ReceiptScannerModal
+        isOpen={showOcrModal}
+        onClose={() => setShowOcrModal(false)}
+        onApplyTransaction={handleApplyOcrTransaction}
+      />
 
       <StatementImportModal
         isOpen={showStatementModal}
