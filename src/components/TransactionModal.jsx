@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   TRANSACTION_TYPES,
   MAJOR_HEADS,
@@ -39,37 +39,44 @@ export default function TransactionModal({
   const [fromAccount, setFromAccount] = useState("HDFC Bank");
   const [toAccount, setToAccount] = useState("SBI Savings");
 
-  useEffect(() => {
-    if (initialData) {
-      setType(initialData.type || "expense");
-      setTitle(initialData.title || "");
-      setAmount(initialData.amount ? String(initialData.amount) : "");
-      setCategory(initialData.category || "Food");
-      setMajorHead(initialData.majorHead || getMajorHead(initialData.category || "Food", initialData.type || "expense"));
-      setDate(initialData.date || new Date().toISOString().slice(0, 10));
-      setPaymentMethod(initialData.paymentMethod || "UPI");
-      setNote(initialData.note || "");
-      setEventId(initialData.eventId || "");
-      setLoanId(initialData.loanId || "");
-      setPrincipalAmount(initialData.principalAmount ? String(initialData.principalAmount) : "");
-      setInterestAmount(initialData.interestAmount ? String(initialData.interestAmount) : "");
-      setFromAccount(initialData.fromAccount || "HDFC Bank");
-      setToAccount(initialData.toAccount || "SBI Savings");
-    } else {
-      setType("expense");
-      setTitle("");
-      setAmount("");
-      setCategory("Food");
-      setMajorHead("Essentials");
-      setDate(new Date().toISOString().slice(0, 10));
-      setPaymentMethod("UPI");
-      setNote("");
-      setEventId("");
-      setLoanId("");
-      setPrincipalAmount("");
-      setInterestAmount("");
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [prevInitialData, setPrevInitialData] = useState(initialData);
+
+  if (isOpen !== prevIsOpen || initialData !== prevInitialData) {
+    setPrevIsOpen(isOpen);
+    setPrevInitialData(initialData);
+    if (isOpen) {
+      if (initialData) {
+        setType(initialData.type || "expense");
+        setTitle(initialData.title || "");
+        setAmount(initialData.amount ? String(initialData.amount) : "");
+        setCategory(initialData.category || "Food");
+        setMajorHead(initialData.majorHead || getMajorHead(initialData.category || "Food", initialData.type || "expense"));
+        setDate(initialData.date || new Date().toISOString().slice(0, 10));
+        setPaymentMethod(initialData.paymentMethod || "UPI");
+        setNote(initialData.note || "");
+        setEventId(initialData.eventId || "");
+        setLoanId(initialData.loanId || "");
+        setPrincipalAmount(initialData.principalAmount ? String(initialData.principalAmount) : "");
+        setInterestAmount(initialData.interestAmount ? String(initialData.interestAmount) : "");
+        setFromAccount(initialData.fromAccount || "HDFC Bank");
+        setToAccount(initialData.toAccount || "SBI Savings");
+      } else {
+        setType("expense");
+        setTitle("");
+        setAmount("");
+        setCategory("Food");
+        setMajorHead("Essentials");
+        setDate(new Date().toISOString().slice(0, 10));
+        setPaymentMethod("UPI");
+        setNote("");
+        setEventId("");
+        setLoanId("");
+        setPrincipalAmount("");
+        setInterestAmount("");
+      }
     }
-  }, [initialData, isOpen]);
+  }
 
   // When type changes, adjust default category & major head
   function handleTypeChange(newType) {

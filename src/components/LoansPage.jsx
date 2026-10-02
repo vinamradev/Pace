@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   calculateEMI,
   generateAmortizationSchedule,
@@ -14,7 +14,6 @@ export default function LoansPage({
   onUpdateLoan,
   onDeleteLoan,
   onOpenAddPaymentForLoan,
-  onBack,
 }) {
   const [selectedLoanId, setSelectedLoanId] = useState(
     loans.length > 0 ? loans[0].id : null

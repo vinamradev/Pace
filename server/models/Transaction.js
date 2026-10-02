@@ -85,7 +85,7 @@ const transactionSchema = new mongoose.Schema(
     },
     source: {
       type: String,
-      enum: ["manual", "ocr", "statement_import", "demo", "recurring", "loan_emi"],
+      enum: ["manual", "ocr", "statement_import", "recurring", "loan_emi"],
       default: "manual",
     },
     // Optional Event Association (e.g. Wedding, Vacation, Renovation)

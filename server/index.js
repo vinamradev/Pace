@@ -1,6 +1,16 @@
+import path from "path";
+import { fileURLToPath } from "url";
+import dotenv from "dotenv";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Ensure environment variables from server/.env are loaded BEFORE DB initialization
+dotenv.config({ path: path.resolve(__dirname, ".env") });
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import { connectDB, getDBStatus } from "./config/db.js";
 import authRoutes from "./routes/auth.routes.js";
 import transactionRoutes from "./routes/transaction.routes.js";
@@ -15,8 +25,6 @@ import {
   apiRateLimiter,
   getCorsOptions,
 } from "./middleware/security.middleware.js";
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -70,6 +78,7 @@ app.use("/api/*", (req, res) => {
 });
 
 // 9. Centralized Error Handler (Prevents stack trace leaks in production)
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error("[PACE Server Error]", err.stack || err.message);
 

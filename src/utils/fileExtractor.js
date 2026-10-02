@@ -315,3 +315,83 @@ export async function extractDataFromFile(file, onProgress) {
     reader.readAsText(file);
   });
 }
+
+/**
+ * Sanitized CSV Exporter for User Transactions
+ */
+export function exportTransactionsToCSV(transactions = [], filename = "pace_transactions.csv") {
+  if (!transactions || transactions.length === 0) {
+    alert("No transactions available to export.");
+    return;
+  }
+
+  const headers = [
+    "Date",
+    "Title",
+    "Type",
+    "Amount (INR)",
+    "Category",
+    "Major Head",
+    "Merchant",
+    "Account",
+    "Payment Method",
+    "Note",
+  ];
+
+  const rows = transactions.map((t) => [
+    `"${t.date || ""}"`,
+    `"${(t.title || "").replace(/"/g, '""')}"`,
+    `"${t.type || "expense"}"`,
+    t.amount || 0,
+    `"${(t.category || "").replace(/"/g, '""')}"`,
+    `"${(t.majorHead || "").replace(/"/g, '""')}"`,
+    `"${(t.merchant || "").replace(/"/g, '""')}"`,
+    `"${(t.account || "").replace(/"/g, '""')}"`,
+    `"${(t.paymentMethod || "").replace(/"/g, '""')}"`,
+    `"${(t.note || "").replace(/"/g, '""')}"`,
+  ]);
+
+  const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+/**
+ * Sanitized JSON Exporter for Complete PACE Financial Data Backup
+ * Never exports passwords, secret tokens, or auth credentials
+ */
+export function exportFinancialDataJSON({ user, transactions = [], events = [], loans = [], goals = [], monthlyBudget, categoryBudgets }, filename = "pace_financial_backup.json") {
+  const sanitizedBackup = {
+    exportedAt: new Date().toISOString(),
+    version: "1.0",
+    profile: {
+      name: user?.name || "",
+      email: user?.email || "",
+      currency: user?.currency || "INR",
+      authProvider: user?.authProvider || "local",
+    },
+    monthlyBudget: Number(monthlyBudget || 0),
+    categoryBudgets: categoryBudgets || {},
+    transactionsCount: transactions.length,
+    eventsCount: events.length,
+    loansCount: loans.length,
+    goalsCount: goals.length,
+    transactions,
+    events,
+    loans,
+    goals,
+  };
+
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(sanitizedBackup, null, 2));
+  const link = document.createElement("a");
+  link.setAttribute("href", dataStr);
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}

@@ -33,6 +33,7 @@ router.get("/preferences", authenticateToken, async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("[Notification Pref Fetch Error]", error.message);
     res.status(500).json({ success: false, message: "Failed to fetch notification preferences" });
   }
 });
@@ -64,6 +65,7 @@ router.put("/preferences", authenticateToken, async (req, res) => {
       emailNotifications: user.emailNotifications,
     });
   } catch (error) {
+    console.error("[Notification Pref Update Error]", error.message);
     res.status(500).json({ success: false, message: "Failed to update notification preferences" });
   }
 });
@@ -175,8 +177,12 @@ router.post("/budget-alert", authenticateToken, otpRateLimiter, async (req, res)
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     const budgetDoc = await Budget.findOne({ userId: user._id });
-    const monthlyBudget = budgetDoc?.monthlyBudget || user.monthlyBudget || 20000;
-    const threshold = budgetDoc?.guardThreshold || user.guardThreshold || 80;
+    const monthlyBudget = budgetDoc?.monthlyBudget ?? user.monthlyBudget ?? 0;
+    const threshold = budgetDoc?.guardThreshold ?? user.guardThreshold ?? 80;
+
+    if (monthlyBudget <= 0) {
+      return res.json({ success: true, message: "No monthly budget configured." });
+    }
 
     // Calculate current month's expenses
     const now = new Date();

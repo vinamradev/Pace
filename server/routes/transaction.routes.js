@@ -3,7 +3,6 @@ import Transaction from "../models/Transaction.js";
 import Budget from "../models/Budget.js";
 import User from "../models/User.js";
 import Loan from "../models/Loan.js";
-import Event from "../models/Event.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import { sendBudgetAlertEmail } from "../services/email.service.js";
 
@@ -124,7 +123,7 @@ router.post("/", async (req, res) => {
 
     // Proactive budget guard check for genuine expenses
     if (transaction.type === "expense") {
-      checkAndSendBudgetAlert(userId, numAmount).catch((err) =>
+      checkAndSendBudgetAlert(userId).catch((err) =>
         console.warn("[Transaction] Budget alert check notice:", err.message)
       );
     }
@@ -175,6 +174,85 @@ router.post("/bulk", async (req, res) => {
   }
 });
 
+// PUT /api/transactions/:id (BOLA Protected)
+router.put("/:id", async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const existing = await Transaction.findOne({ _id: req.params.id, userId });
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Transaction not found or unauthorized" });
+    }
+
+    const {
+      title,
+      amount,
+      type,
+      majorHead,
+      category,
+      merchant,
+      account,
+      fromAccount,
+      toAccount,
+      date,
+      paymentMethod,
+      note,
+      eventId,
+      loanId,
+      principalAmount,
+      interestAmount,
+      isRecurring,
+      recurringFrequency,
+    } = req.body;
+
+    const updates = {};
+    if (title !== undefined) updates.title = String(title).slice(0, 200).trim();
+    if (amount !== undefined) updates.amount = Math.abs(Number(amount)) || 0;
+    if (type !== undefined) {
+      const validTypes = ["expense", "income", "savings", "investment", "debt_repayment", "transfer", "cash_withdrawal"];
+      updates.type = validTypes.includes(type) ? type : existing.type;
+    }
+    if (majorHead !== undefined) updates.majorHead = String(majorHead).slice(0, 100).trim();
+    if (category !== undefined) updates.category = String(category).slice(0, 80).trim();
+    if (merchant !== undefined) updates.merchant = String(merchant).slice(0, 150).trim();
+    if (account !== undefined) updates.account = String(account).slice(0, 80).trim();
+    if (fromAccount !== undefined) updates.fromAccount = String(fromAccount).slice(0, 80).trim();
+    if (toAccount !== undefined) updates.toAccount = String(toAccount).slice(0, 80).trim();
+    if (date !== undefined) updates.date = String(date).slice(0, 10);
+    if (paymentMethod !== undefined) updates.paymentMethod = String(paymentMethod).slice(0, 50);
+    if (note !== undefined) updates.note = String(note).slice(0, 1000);
+    if (eventId !== undefined) updates.eventId = eventId || null;
+    if (loanId !== undefined) updates.loanId = loanId || null;
+    if (principalAmount !== undefined) updates.principalAmount = Math.max(0, Number(principalAmount) || 0);
+    if (interestAmount !== undefined) updates.interestAmount = Math.max(0, Number(interestAmount) || 0);
+    if (isRecurring !== undefined) updates.isRecurring = Boolean(isRecurring);
+    if (recurringFrequency !== undefined) updates.recurringFrequency = recurringFrequency || "none";
+
+    // Handle loan principal adjustment delta if loan debt repayment principal changed
+    if (existing.loanId && existing.type === "debt_repayment") {
+      const oldPrincipal = Number(existing.principalAmount) || 0;
+      const newPrincipal = updates.principalAmount !== undefined ? updates.principalAmount : oldPrincipal;
+      const delta = oldPrincipal - newPrincipal; // If new principal is higher, outstanding decreases further (diff is negative)
+      if (delta !== 0) {
+        Loan.findOneAndUpdate(
+          { _id: existing.loanId, userId },
+          { $inc: { currentOutstanding: delta } }
+        ).catch(() => {});
+      }
+    }
+
+    const updated = await Transaction.findOneAndUpdate(
+      { _id: req.params.id, userId },
+      updates,
+      { new: true }
+    );
+
+    res.json({ success: true, message: "Transaction updated successfully", transaction: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to update transaction", error: error.message });
+  }
+});
+
 // DELETE /api/transactions/:id (BOLA Protected)
 router.delete("/:id", async (req, res) => {
   try {
@@ -202,12 +280,12 @@ router.delete("/:id", async (req, res) => {
 /**
  * Helper to check if spending crossed budget guard threshold and send email
  */
-async function checkAndSendBudgetAlert(userId, newExpenseAmount) {
+async function checkAndSendBudgetAlert(userId) {
   const user = await User.findById(userId);
   if (!user || user.emailNotifications?.budgetAlerts === false) return;
 
   const budget = await Budget.findOne({ userId });
-  const monthlyBudget = budget?.monthlyBudget || user.monthlyBudget || 20000;
+  const monthlyBudget = budget?.monthlyBudget ?? user.monthlyBudget ?? 0;
   const threshold = budget?.guardThreshold || user.guardThreshold || 80;
 
   const now = new Date();

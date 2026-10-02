@@ -1,4 +1,3 @@
-import React from "react";
 import { formatMonthName, getPreviousMonthKey, getNextMonthKey, toMonthKey } from "../utils/financialEngine";
 
 export default function MonthSwitcher({ currentMonthKey, onMonthChange }) {

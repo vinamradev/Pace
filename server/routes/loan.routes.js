@@ -15,7 +15,7 @@ export function calculateAmortizationSchedule(principal, annualRate, tenureMonth
   if (principal <= 0 || tenureMonths <= 0) return [];
 
   const monthlyRate = annualRate / 12 / 100;
-  let emi = 0;
+  let emi;
 
   if (monthlyRate === 0) {
     emi = principal / tenureMonths;

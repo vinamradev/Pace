@@ -48,25 +48,21 @@ async function request(endpoint, options = {}) {
 
   const url = `${API_BASE}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
-  try {
-    const res = await fetch(url, {
-      ...options,
-      headers,
-    });
+  const res = await fetch(url, {
+    ...options,
+    headers,
+  });
 
-    const data = await res.json().catch(() => ({}));
+  const data = await res.json().catch(() => ({}));
 
-    if (!res.ok) {
-      const error = new Error(data.message || `Request failed with status ${res.status}`);
-      error.status = res.status;
-      error.data = data;
-      throw error;
-    }
-
-    return data;
-  } catch (err) {
-    throw err;
+  if (!res.ok) {
+    const error = new Error(data.message || `Request failed with status ${res.status}`);
+    error.status = res.status;
+    error.data = data;
+    throw error;
   }
+
+  return data;
 }
 
 /**
@@ -92,10 +88,10 @@ export async function checkServerHealth() {
    AUTHENTICATION API CALLS
    ========================================================================== */
 
-export async function apiRegister({ name, email, password, monthlyBudget }) {
+export async function apiRegister({ name, email, password }) {
   const data = await request("/auth/register", {
     method: "POST",
-    body: JSON.stringify({ name, email, password, monthlyBudget }),
+    body: JSON.stringify({ name, email, password }),
   });
   if (data?.token) {
     setAuthToken(data.token);
@@ -114,10 +110,10 @@ export async function apiLogin({ email, password }) {
   return data;
 }
 
-export async function apiGoogleAuth({ credential, email, name, picture, googleId }) {
+export async function apiGoogleAuth({ credential }) {
   const data = await request("/auth/google", {
     method: "POST",
-    body: JSON.stringify({ credential, email, name, picture, googleId }),
+    body: JSON.stringify({ credential }),
   });
   if (data?.token) {
     setAuthToken(data.token);
@@ -179,6 +175,13 @@ export async function apiCreateTransaction(tx) {
   });
 }
 
+export async function apiUpdateTransaction(id, updates) {
+  return await request(`/transactions/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(updates),
+  });
+}
+
 export async function apiBulkAddTransactions(transactions) {
   try {
     return await request("/transactions/bulk", {
@@ -193,6 +196,13 @@ export async function apiBulkAddTransactions(transactions) {
 
 export async function apiDeleteTransaction(id) {
   return await request(`/transactions/${id}`, { method: "DELETE" });
+}
+
+export async function apiDeleteAccount({ password, confirmText } = {}) {
+  return await request("/auth/account", {
+    method: "DELETE",
+    body: JSON.stringify({ password, confirmText }),
+  });
 }
 
 /* ==========================================================================

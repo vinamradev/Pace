@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { calculateEventSummary } from "../utils/financialEngine";
 
 export default function EventsPage({
@@ -9,7 +9,6 @@ export default function EventsPage({
   onDeleteEvent,
   onOpenAddTransactionForEvent,
   onDeleteTransaction,
-  onBack,
 }) {
   const [selectedEventId, setSelectedEventId] = useState(
     events.length > 0 ? events[0].id : null

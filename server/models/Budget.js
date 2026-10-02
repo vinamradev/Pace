@@ -11,7 +11,7 @@ const budgetSchema = new mongoose.Schema(
     },
     monthlyBudget: {
       type: Number,
-      default: 20000,
+      default: 0,
     },
     guardThreshold: {
       type: Number,

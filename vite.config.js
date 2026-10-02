@@ -20,21 +20,15 @@ export default defineConfig({
         icons: [
           {
             src: '/pace-icon-192x192.png',
-            sizes: '192x192 512x512',
+            sizes: '192x192',
             type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: '/pace-icon-192x192.png',
-            sizes: '192x192 512x512',
-            type: 'image/png',
-            purpose: 'any ',
+            purpose: 'any maskable',
           },
           {
             src: '/pace-icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'maskable',
+            purpose: 'any maskable',
           }
         ],
       },

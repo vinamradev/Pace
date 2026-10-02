@@ -1,0 +1,500 @@
+  letter-spacing: -1px;
+}
+
+.finance-summary-card small {
+  display: block;
+  margin-top: 5px;
+  color: #8b8393;
+  font-size: 11px;
+}
+
+.finance-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.finance-section-heading h3,
+.add-section h3 {
+  margin: 3px 0 0;
+  font-size: 16px;
+  color: #2c263d;
+}
+
+/* Add screen */
+.add-page .page-title {
+  margin-bottom: 18px;
+}
+
+.add-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.add-action-card {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+  min-height: 72px;
+  padding: 10px;
+  border: 1px solid #ebe6f0;
+  border-radius: 17px;
+  background: #fff;
+  color: #302a42;
+  text-align: left;
+  box-shadow: 0 6px 17px rgba(62, 48, 89, 0.045);
+}
+
+.add-action-card:hover {
+  transform: translateY(-1px);
+  border-color: #ddd2ef;
+  box-shadow: 0 10px 22px rgba(62, 48, 89, 0.08);
+}
+
+.add-action-icon {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 11px;
+  background: #f0eaff;
+  font-size: 16px;
+}
+
+.add-action-card > span:nth-child(2) {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.add-action-card strong {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.add-action-card small {
+  margin-top: 3px;
+  color: #8a8292;
+  font-size: 8px;
+  line-height: 1.25;
+}
+
+.add-action-card b {
+  color: #8b5cf6;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+/* Activity: keep import useful but compact, no duplicate giant cards */
+.activity-toolbar,
+.activity-group,
+.transactions {
+  color: var(--pace-text);
+}
+
+.activity-toolbar {
+  padding: 13px !important;
+  border: 1px solid #ebe6f0 !important;
+  border-radius: 20px !important;
+  background: #fff !important;
+  box-shadow: 0 7px 20px rgba(62, 48, 89, 0.045) !important;
+}
+
+.search-box,
+.activity-category-select,
+.filter-chip {
+  border-color: #e7e1ec !important;
+  background: #fbfafc !important;
+  color: #3f384d !important;
+}
+
+.filter-chip.active {
+  border-color: #d9c9fa !important;
+  background: #efe8ff !important;
+  color: #6f4ed3 !important;
+}
+
+.activity-group-title span {
+  color: #4d4659 !important;
+}
+
+.activity-group-title small {
+  color: #968da0 !important;
+}
+
+.transaction,
+.transaction-card,
+.activity-list > * {
+  border-color: #eee9f1 !important;
+}
+
+/* Goals */
+.goal-card,
+.dashboard-goal-card {
+  border-color: #ebe6f0 !important;
+  background: #fff !important;
+}
+
+.goal-title h3,
+.goal-card-header > strong,
+.goal-money {
+  color: #312b40 !important;
+}
+
+.goal-title small,
+.goal-money small {
+  color: #8b8393 !important;
+}
+
+.progress-track {
+  background: #eeeaf4 !important;
+}
+
+.progress-fill {
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa) !important;
+  box-shadow: none !important;
+}
+
+/* Events / Loans / Reports / Review */
+.events-page,
+.loans-page,
+.reports-page,
+.monthly-review-page,
+.insights-page {
+  color: var(--pace-text) !important;
+}
+
+.events-page > *,
+.loans-page > *,
+.reports-page > *,
+.monthly-review-page > *,
+.insights-page > * {
+  color: inherit;
+}
+
+/* Settings */
+.settings-card,
+.settings-row,
+.notification-toggle-row,
+.settings-section {
+  color: #332c41 !important;
+}
+
+.settings-row strong,
+.notification-toggle-info strong,
+.settings-section strong {
+  color: #332c41 !important;
+}
+
+.settings-row small,
+.notification-toggle-info small {
+  color: #8b8393 !important;
+}
+
+.settings-card input,
+.settings-card select,
+.modal input,
+.modal select,
+.modal textarea {
+  border-color: #e4deea !important;
+  background: #fff !important;
+  color: #302a42 !important;
+}
+
+.settings-card input:focus,
+.settings-card select:focus,
+.modal input:focus,
+.modal select:focus,
+.modal textarea:focus {
+  border-color: #b79bea !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.10) !important;
+}
+
+/* Empty states */
+.empty-state,
+.dashboard-empty-activity,
+.category-budget-empty {
+  border-color: #ddd6e8 !important;
+  background: #fcfbfd !important;
+  color: #302a42 !important;
+}
+
+.empty-state h3,
+.empty-state p,
+.dashboard-empty-activity strong,
+.dashboard-empty-activity small,
+.category-budget-empty strong,
+.category-budget-empty small {
+  color: inherit !important;
+}
+
+/* Bottom navigation */
+.bottom-nav {
+  width: min(470px, calc(100% - 20px)) !important;
+  height: 70px !important;
+  border: 1px solid #e8e1ee !important;
+  border-radius: 24px !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  box-shadow: 0 16px 42px rgba(62, 48, 89, 0.13) !important;
+}
+
+.nav-item {
+  color: #827a91 !important;
+}
+
+.nav-item.active {
+  color: #7351d9 !important;
+  background: #f0eaff !important;
+}
+
+.add-btn {
+  border-color: #faf8f3 !important;
+  background: linear-gradient(145deg, #a47cff, #815be8) !important;
+  box-shadow: 0 10px 24px rgba(123, 85, 233, 0.25) !important;
+}
+
+.add-btn small {
+  color: #625b72 !important;
+}
+
+/* Modals */
+.modal-overlay {
+  background: rgba(52, 42, 68, 0.22) !important;
+  backdrop-filter: blur(5px);
+}
+
+.modal {
+  border: 1px solid #e8e1ee !important;
+  background: #fff !important;
+  color: #302a42 !important;
+  box-shadow: 0 24px 70px rgba(52, 42, 68, 0.18) !important;
+}
+
+.modal-header h2,
+.modal-header span,
+.modal label {
+  color: #302a42 !important;
+}
+
+/* Auth screen */
+.auth-screen,
+.auth-card,
+.login-card,
+.auth-container {
+  color: #302a42 !important;
+}
+
+/* V2-only OCR is intentionally not exposed from primary V1 flows */
+.ocr-quick-trigger-btn {
+  display: none !important;
+}
+
+@media (max-width: 420px) {
+  .pace-dashboard .dashboard-overview-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .add-action-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 360px) {
+  .pace-dashboard .dashboard-finance-grid,
+  .add-action-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Auth surfaces */
+.auth-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 28px 18px 40px;
+  background:
+    radial-gradient(circle at 15% 5%, rgba(139, 92, 246, 0.11), transparent 32%),
+    radial-gradient(circle at 90% 90%, rgba(245, 166, 107, 0.10), transparent 30%),
+    #faf8f3 !important;
+  color: #302a42 !important;
+}
+
+.auth-header .logo,
+.auth-header .tagline {
+  color: #302a42 !important;
+  -webkit-text-fill-color: initial !important;
+  background: none !important;
+}
+
+.auth-header .tagline {
+  color: #81798f !important;
+}
+
+.auth-card {
+  border: 1px solid #e9e2ee !important;
+  background: rgba(255,255,255,0.94) !important;
+  box-shadow: 0 18px 48px rgba(62, 48, 89, 0.10) !important;
+}
+
+.auth-tab {
+  color: #81798f !important;
+}
+
+.auth-tab.active {
+  color: #7351d9 !important;
+  background: #f0eaff !important;
+}
+
+.auth-form label,
+.auth-form input,
+.auth-form select {
+  color: #332c41 !important;
+}
+
+.auth-form input,
+.auth-form select {
+  border-color: #e3dce9 !important;
+  background: #fff !important;
+}
+
+.auth-divider {
+  color: #958ca0 !important;
+}
+
+/* Financial detail pages — same visual language, no dark islands */
+.event-hero-card,
+.event-section,
+.event-category-card,
+.event-monthly-item,
+.event-transactions-list,
+.loan-hero-card,
+.loan-section,
+.loan-smart-banner,
+.simulator-results-card,
+.simulator-controls,
+.report-section,
+.report-narrative-card,
+.major-head-card,
+.compare-selectors-card,
+.compare-metric-card,
+.category-shifts-table-wrapper,
+.monthly-review-page .section,
+.monthly-review-page .review-section,
+.monthly-review-page .card,
+.empty-state-card {
+  border-color: #ebe6f0 !important;
+  background: #fff !important;
+  color: #332c41 !important;
+  box-shadow: 0 9px 24px rgba(62, 48, 89, 0.055) !important;
+}
+
+.event-hero-card h1,
+.event-hero-card h2,
+.event-section h3,
+.loan-hero-card h1,
+.loan-hero-card h2,
+.loan-section h3,
+.report-section h3,
+.report-narrative-text strong,
+.major-head-card strong,
+.compare-metric-card strong,
+.monthly-review-page h3,
+.monthly-review-page h4 {
+  color: #302a42 !important;
+}
+
+.event-hero-card p,
+.event-section p,
+.loan-section p,
+.loan-smart-banner p,
+.report-section p,
+.report-narrative-text p,
+.field-hint,
+.event-tx-meta,
+.loan-metric span,
+.compare-metric-label,
+.empty-subtext {
+  color: #847c90 !important;
+}
+
+.event-progress-bar,
+.loan-section .progress-bar,
+.report-section .progress-bar {
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa) !important;
+  box-shadow: none !important;
+}
+
+.event-pill-tabs,
+.loan-quick-actions,
+.simulator-controls,
+.compare-selector-col {
+  border-color: #e8e1ee !important;
+  background: #faf8fc !important;
+}
+
+.amortization-table,
+.schedule-table-wrapper,
+.category-shifts-table-wrapper {
+  overflow-x: auto;
+  border-radius: 16px;
+}
+
+.amortization-table table,
+.schedule-table-wrapper table,
+.category-shifts-table {
+  background: #fff !important;
+  color: #332c41 !important;
+}
+
+.amortization-table th,
+.schedule-table-wrapper th,
+.category-shifts-table th {
+  background: #f6f2fa !important;
+  color: #655c72 !important;
+}
+
+.amortization-table td,
+.schedule-table-wrapper td,
+.category-shifts-table td {
+  border-color: #eee9f2 !important;
+  color: #51495e !important;
+}
+
+.back-btn,
+.secondary-btn,
+.primary-action-btn,
+.calc-btn,
+.event-add-expense-btn,
+.loan-pay-btn {
+  border-radius: 12px !important;
+}
+
+.primary-action-btn,
+.calc-btn,
+.loan-pay-btn,
+.event-add-expense-btn {
+  border-color: transparent !important;
+  background: #8b5cf6 !important;
+  color: #fff !important;
+}
+
+.secondary-btn,
+.back-btn {
+  border: 1px solid #e5deeb !important;
+  background: #fff !important;
+  color: #625a70 !important;
+}
+
+.badge-highlight,
+.security-badge,
+.pill-budget,
+.month-tag {
+  border-color: #dfd3f3 !important;
+  background: #f1eaff !important;
+  color: #7351d9 !important;
+}

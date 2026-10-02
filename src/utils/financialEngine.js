@@ -365,7 +365,6 @@ export function simulatePrepayment(loan, { extraMonthly = 0, lumpsumAmount = 0, 
     if (balance <= 0) break;
 
     const interest = Math.round(balance * monthlyRate);
-    const standardPrincipal = regularEmi - interest;
     let actualPayment = regularEmi + extraMonthly;
     let principalPaid = actualPayment - interest;
 

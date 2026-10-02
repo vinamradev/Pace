@@ -1,4 +1,5 @@
 import express from "express";
+import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -6,6 +7,10 @@ import validator from "validator";
 import { OAuth2Client } from "google-auth-library";
 import User from "../models/User.js";
 import Budget from "../models/Budget.js";
+import Transaction from "../models/Transaction.js";
+import Event from "../models/Event.js";
+import Loan from "../models/Loan.js";
+import Goal from "../models/Goal.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import { authRateLimiter, otpRateLimiter } from "../middleware/security.middleware.js";
 import {
@@ -82,7 +87,7 @@ function getClientDetails(req) {
  */
 router.post("/register", authRateLimiter, async (req, res) => {
   try {
-    const { name, email, password, monthlyBudget = 20000 } = req.body;
+    const { name, email, password } = req.body;
 
     if (!name || typeof name !== "string" || name.trim().length < 2) {
       return res.status(400).json({ success: false, message: "Valid name (min 2 characters) is required" });
@@ -112,15 +117,12 @@ router.post("/register", authRateLimiter, async (req, res) => {
 
     // Secure password hashing with salt rounds 12
     const hashedPassword = await bcrypt.hash(password, 12);
-    const numBudget = Math.max(1000, Number(monthlyBudget) || 20000);
-
     const { ip, userAgent } = getClientDetails(req);
 
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
       password: hashedPassword,
-      monthlyBudget: numBudget,
       guardThreshold: 80,
       authProvider: "local",
       isEmailVerified: true,
@@ -129,14 +131,6 @@ router.post("/register", authRateLimiter, async (req, res) => {
         ip,
         userAgent,
       },
-    });
-
-    // Create user's initial budget record
-    await Budget.create({
-      userId: user._id,
-      monthlyBudget: user.monthlyBudget,
-      guardThreshold: 80,
-      categoryBudgets: {},
     });
 
     // Send Welcome Email
@@ -230,55 +224,38 @@ router.post("/login", authRateLimiter, async (req, res) => {
  */
 router.post("/google", async (req, res) => {
   try {
-    const { credential, email, name, picture, googleId } = req.body;
+    const { credential } = req.body;
     let payload = null;
 
-    // Verify token with Google's servers if credential and Client ID are present
-    if (credential && process.env.GOOGLE_CLIENT_ID) {
-      try {
-        const ticket = await googleClient.verifyIdToken({
-          idToken: credential,
-          audience: process.env.GOOGLE_CLIENT_ID,
-        });
-        const googlePayload = ticket.getPayload();
-        if (googlePayload) {
-          payload = {
-            sub: googlePayload.sub,
-            email: googlePayload.email,
-            name: googlePayload.name,
-            picture: googlePayload.picture,
-            email_verified: googlePayload.email_verified,
-          };
-        }
-      } catch (err) {
-        console.warn("[Google Auth] ID Token verification failed:", err.message);
-        return res.status(401).json({
-          success: false,
-          message: "Google authentication failed: Invalid token signature",
-        });
-      }
-    } else if (process.env.GOOGLE_CLIENT_ID && !credential) {
-      // If client ID is configured on server, strictly reject unverified requests
+    if (!credential) {
       return res.status(400).json({
         success: false,
-        message: "Google credential token is required for authentication",
+        message: "Google credential ID token is required for OAuth authentication",
       });
-    } else {
-      // Local dev mode fallback when Google Client ID has not yet been set in .env
-      if (!email || !validator.isEmail(email)) {
-        return res.status(400).json({
-          success: false,
-          message: "Valid email is required for Google Sign-In",
-        });
+    }
+
+    // Verify OAuth ID token with Google's servers
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID || "236425816974-q2qfjok68p0333obphbs6qr1gn9f64g7.apps.googleusercontent.com",
+      });
+      const googlePayload = ticket.getPayload();
+      if (googlePayload) {
+        payload = {
+          sub: googlePayload.sub,
+          email: googlePayload.email,
+          name: googlePayload.name,
+          picture: googlePayload.picture,
+          email_verified: googlePayload.email_verified,
+        };
       }
-      payload = {
-        sub: googleId || "g_" + Date.now(),
-        email: email.trim().toLowerCase(),
-        name: name || email.split("@")[0],
-        picture: picture || "",
-        email_verified: true,
-      };
-      console.log(`[Google Auth] Note: Operating in developer mode for: ${payload.email}`);
+    } catch (err) {
+      console.warn("[Google Auth] ID Token verification failed:", err.message);
+      return res.status(401).json({
+        success: false,
+        message: "Google authentication failed: Invalid token signature",
+      });
     }
 
     if (!payload?.email) {
@@ -302,20 +279,12 @@ router.post("/google", async (req, res) => {
         picture: payload.picture || "",
         authProvider: "google",
         isEmailVerified: true,
-        monthlyBudget: 20000,
         guardThreshold: 80,
         lastLogin: {
           timestamp: new Date(),
           ip,
           userAgent,
         },
-      });
-
-      await Budget.create({
-        userId: user._id,
-        monthlyBudget: 20000,
-        guardThreshold: 80,
-        categoryBudgets: {},
       });
 
       // Send Welcome Email to newly registered Google user
@@ -574,6 +543,7 @@ router.get("/me", authenticateToken, async (req, res) => {
     }
     res.json({ success: true, user: sanitizeUser(user) });
   } catch (error) {
+    console.error("[Auth /me Error]", error.message);
     res.status(500).json({ success: false, message: "Failed to fetch user profile" });
   }
 });
@@ -620,7 +590,112 @@ router.post("/change-password", authenticateToken, async (req, res) => {
 
     res.json({ success: true, message: "Password updated successfully!" });
   } catch (error) {
+    console.error("[Auth change-password Error]", error.message);
     res.status(500).json({ success: false, message: "Failed to update password" });
+  }
+});
+
+/**
+ * DELETE /api/auth/account
+ * Provider-aware, atomic account deletion cascade using Mongoose session & transaction
+ */
+router.delete("/account", authenticateToken, async (req, res) => {
+  let session = null;
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Account not found" });
+    }
+
+    const { password, confirmText } = req.body || {};
+
+    // Independent Backend Provider Determination & Re-authentication
+    if (user.authProvider === "google") {
+      if (!confirmText || String(confirmText).trim().toUpperCase() !== "DELETE") {
+        return res.status(400).json({
+          success: false,
+          message: "Please type 'DELETE' to confirm account deletion.",
+        });
+      }
+    } else {
+      if (!password) {
+        return res.status(400).json({
+          success: false,
+          message: "Current password is required to confirm account deletion.",
+        });
+      }
+      const isMatch = await bcrypt.compare(password, user.password || "");
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: "Incorrect password. Account deletion denied.",
+        });
+      }
+    }
+
+    // Attempt Mongoose Atomic Transaction
+    try {
+      session = await mongoose.startSession();
+      session.startTransaction();
+
+      await Transaction.deleteMany({ userId }, { session });
+      await Event.deleteMany({ userId }, { session });
+      await Loan.deleteMany({ userId }, { session });
+      await Budget.deleteMany({ userId }, { session });
+      await Goal.deleteMany({ userId }, { session });
+      await User.findOneAndDelete({ _id: userId }, { session });
+
+      await session.commitTransaction();
+      return res.json({
+        success: true,
+        message: "Account and all associated financial data permanently deleted.",
+      });
+    } catch (txError) {
+      if (session) {
+        try {
+          await session.abortTransaction();
+        } catch {
+          // Ignore transaction abort failure
+        }
+      }
+
+      // Check if session transaction is unsupported on standalone local MongoDB
+      const isUnsupported =
+        txError.message &&
+        (txError.message.includes("Transaction numbers") ||
+          txError.message.includes("replica set") ||
+          txError.message.includes("standalone"));
+
+      if (isUnsupported) {
+        console.warn("[Account Delete] MongoDB standalone fallback executed for user:", userId);
+        // Fallback for standalone MongoDB environments
+        await Transaction.deleteMany({ userId });
+        await Event.deleteMany({ userId });
+        await Loan.deleteMany({ userId });
+        await Budget.deleteMany({ userId });
+        await Goal.deleteMany({ userId });
+        await User.findOneAndDelete({ _id: userId });
+
+        return res.json({
+          success: true,
+          message: "Account and all associated financial data permanently deleted.",
+        });
+      }
+
+      throw txError;
+    }
+  } catch (error) {
+    console.error("[PACE Security] Account deletion error:", error.message || error);
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred while deleting your account. Please try again later.",
+    });
+  } finally {
+    if (session) {
+      session.endSession();
+    }
   }
 });
 

@@ -12,19 +12,11 @@ router.get("/", async (req, res) => {
   try {
     const userId = req.user.id;
 
-    let budget = await Budget.findOne({ userId });
-    if (!budget) {
-      budget = await Budget.create({
-        userId,
-        monthlyBudget: 20000,
-        guardThreshold: 80,
-        categoryBudgets: {},
-      });
-    }
+    const budget = await Budget.findOne({ userId });
 
-    res.json({ success: true, budget });
+    res.json({ success: true, budget: budget || null });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to fetch budget", error: error.message });
+    res.status(500).json({ success: false, message: "Failed to fetch budget" });
   }
 });
 
@@ -53,7 +45,7 @@ router.post("/", async (req, res) => {
 
     res.json({ success: true, budget });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to update budget", error: error.message });
+    res.status(500).json({ success: false, message: "Failed to update budget" });
   }
 });
 

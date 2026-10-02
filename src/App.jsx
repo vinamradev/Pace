@@ -2,27 +2,25 @@ import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import PaceLogo from "./components/PaceLogo";
 import GoogleSignInButton from "./components/GoogleSignInButton";
-import ReceiptScannerModal from "./components/ReceiptScannerModal";
 import StatementImportModal from "./components/StatementImportModal";
-import MonthSwitcher from "./components/MonthSwitcher";
+
 import EventsPage from "./components/EventsPage";
 import LoansPage from "./components/LoansPage";
 import ReportsPage from "./components/ReportsPage";
+import MonthlyReviewPage from "./components/MonthlyReviewPage";
 import TransactionModal from "./components/TransactionModal";
 import {
+  exportTransactionsToCSV,
+  exportFinancialDataJSON,
+} from "./utils/fileExtractor";
+import {
   calculateMonthlyFinances,
-  calculateEventSummary,
+ 
   toMonthKey,
-  formatMonthName,
-  getPreviousMonthKey,
-  getNextMonthKey,
   isDateInMonth,
   getMajorHead,
-  TRANSACTION_TYPES,
-  MAJOR_HEADS,
 } from "./utils/financialEngine";
 import {
-  checkServerHealth,
   apiBulkAddTransactions,
   apiLogin,
   apiRegister,
@@ -30,9 +28,7 @@ import {
   apiVerifyOtp,
   apiResetPassword,
   clearAuthToken,
-  apiSendTestEmail,
   apiSendReportEmail,
-  apiTriggerBudgetAlert,
   apiGetNotificationPrefs,
   apiUpdateNotificationPrefs,
   apiGetEvents,
@@ -45,10 +41,17 @@ import {
   apiDeleteLoan,
   apiGetTransactions,
   apiCreateTransaction,
+  apiUpdateTransaction,
   apiDeleteTransaction,
+  apiDeleteAccount,
+  apiGetBudget,
+  apiGetGoals,
+  apiCreateGoal,
+  apiUpdateGoal,
+  apiDeleteGoal,
+  apiUpdateBudget,
   getAuthToken,
 } from "./services/api";
-
 
 const EXPENSE_CATEGORIES = [
   "Food",
@@ -114,260 +117,7 @@ function toDateKey(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
-function getDemoDate(offsetDays = 0) {
-  const date = new Date();
-  date.setDate(date.getDate() - offsetDays);
-  return toDateKey(date);
-}
-
-function getDemoMonthStart() {
-  const date = new Date();
-  date.setDate(1);
-  return toDateKey(date);
-}
-
-function getDemoEvents() {
-  return [
-    {
-      id: "demo_event_1",
-      name: "💍 Rohan & Priya Wedding",
-      icon: "💍",
-      budget: 250000,
-      startDate: "2026-09-01",
-      endDate: "2026-11-28",
-      status: "active",
-      categories: ["Venue & Decor", "Catering", "Clothing & Jewelry", "Photography", "Logistics", "Other"],
-    },
-    {
-      id: "demo_event_2",
-      name: "✈️ Diwali Goa Trip",
-      icon: "✈️",
-      budget: 45000,
-      startDate: "2026-10-18",
-      endDate: "2026-10-24",
-      status: "active",
-      categories: ["Flights", "Resort Stay", "Dining & Beach", "Water Sports"],
-    },
-  ];
-}
-
-function getDemoLoans() {
-  return [
-    {
-      id: "demo_loan_1",
-      name: "SBI Home Loan",
-      icon: "🏠",
-      loanType: "home",
-      lender: "State Bank of India",
-      originalPrincipal: 2500000,
-      currentOutstanding: 1940000,
-      interestRate: 8.5,
-      tenureMonths: 240,
-      remainingTenureMonths: 152,
-      emiAmount: 24500,
-      dueDay: 5,
-      startDate: "2020-05-10",
-      status: "active",
-    },
-    {
-      id: "demo_loan_2",
-      name: "HDFC Car Loan",
-      icon: "🚗",
-      loanType: "vehicle",
-      lender: "HDFC Bank",
-      originalPrincipal: 600000,
-      currentOutstanding: 280000,
-      interestRate: 9.2,
-      tenureMonths: 60,
-      remainingTenureMonths: 24,
-      emiAmount: 12500,
-      dueDay: 10,
-      startDate: "2024-09-10",
-      status: "active",
-    },
-  ];
-}
-
-function getDemoTransactions() {
-  return [
-    {
-      id: 1,
-      title: "Monthly Salary (Tech Corp)",
-      category: "Salary",
-      majorHead: "Income",
-      amount: 85000,
-      type: "income",
-      date: "2026-09-01",
-      icon: "💰",
-      paymentMethod: "Bank Transfer",
-      note: "Credited to HDFC Salary Account",
-    },
-    {
-      id: 2,
-      title: "SBI Home Loan EMI",
-      category: "Home Loan EMI",
-      majorHead: "Financial Commitments",
-      amount: 24500,
-      type: "debt_repayment",
-      loanId: "demo_loan_1",
-      principalAmount: 11200,
-      interestAmount: 13300,
-      date: "2026-09-05",
-      icon: "🏠",
-      paymentMethod: "Auto-Debit",
-      note: "Auto-debited from HDFC",
-    },
-    {
-      id: 3,
-      title: "Nifty 50 Index Mutual Fund SIP",
-      category: "Mutual Fund SIP",
-      majorHead: "Wealth & Future",
-      amount: 10000,
-      type: "investment",
-      date: "2026-09-07",
-      icon: "📈",
-      paymentMethod: "Auto-Debit",
-      note: "Groww Direct Plan SIP",
-    },
-    {
-      id: 4,
-      title: "Emergency Fund Recurring Deposit",
-      category: "Emergency Fund",
-      majorHead: "Wealth & Future",
-      amount: 5000,
-      type: "savings",
-      date: "2026-09-08",
-      icon: "🏦",
-      paymentMethod: "Auto-Debit",
-      note: "HDFC High-Yield Savings",
-    },
-    {
-      id: 5,
-      title: "Apartment Rent & Maintenance",
-      category: "Rent",
-      majorHead: "Essentials",
-      amount: 14000,
-      type: "expense",
-      date: "2026-09-02",
-      icon: "🏠",
-      paymentMethod: "UPI",
-      note: "Paid to landlord via UPI",
-    },
-    {
-      id: 6,
-      title: "Wedding Palace Lawn Venue Advance",
-      category: "Wedding",
-      majorHead: "Lifestyle",
-      amount: 35000,
-      type: "expense",
-      eventId: "demo_event_1",
-      date: "2026-09-12",
-      icon: "💍",
-      paymentMethod: "Bank Transfer",
-      note: "50% Booking advance for Sangeet & Reception",
-    },
-    {
-      id: 7,
-      title: "Wedding Bridal Outfits & Jewelry",
-      category: "Shopping",
-      majorHead: "Lifestyle",
-      amount: 18000,
-      type: "expense",
-      eventId: "demo_event_1",
-      date: "2026-09-16",
-      icon: "💍",
-      paymentMethod: "Card",
-      note: "Lehengas & Sherwani advance",
-    },
-    {
-      id: 8,
-      title: "Blinkit & Nature's Basket Groceries",
-      category: "Food",
-      majorHead: "Essentials",
-      amount: 3450,
-      type: "expense",
-      date: "2026-09-18",
-      icon: "🛒",
-      paymentMethod: "UPI",
-      note: "Monthly pantry and fresh veggies",
-    },
-    {
-      id: 9,
-      title: "Electricity & Fiber Internet Bill",
-      category: "Bills",
-      majorHead: "Essentials",
-      amount: 2100,
-      type: "expense",
-      date: "2026-09-15",
-      icon: "📄",
-      paymentMethod: "UPI",
-      note: "Airtel Xstream & BESCOM bill",
-    },
-    {
-      id: 10,
-      title: "Weekend Dining & Zomato",
-      category: "Food",
-      majorHead: "Lifestyle",
-      amount: 1650,
-      type: "expense",
-      date: "2026-09-20",
-      icon: "🍔",
-      paymentMethod: "UPI",
-      note: "Saturday family dinner",
-    },
-    {
-      id: 11,
-      title: "Self Transfer to SBI Savings",
-      category: "Self Transfer",
-      majorHead: "Internal Transfers",
-      amount: 5000,
-      type: "transfer",
-      fromAccount: "HDFC Bank",
-      toAccount: "SBI Savings",
-      date: "2026-09-10",
-      icon: "🔁",
-      paymentMethod: "Bank Transfer",
-      note: "Emergency liquidity transfer",
-    },
-    {
-      id: 12,
-      title: "ATM Cash Withdrawal",
-      category: "ATM Withdrawal",
-      majorHead: "Internal Transfers",
-      amount: 2000,
-      type: "cash_withdrawal",
-      date: "2026-09-14",
-      icon: "💵",
-      paymentMethod: "Cash",
-      note: "HDFC ATM cash for petty expenses",
-    },
-  ];
-}
-
-function getDemoGoals() {
-  return [
-    {
-      id: 1,
-      name: "Emergency Fund",
-      icon: "🚨",
-      category: "Emergency",
-      target: 50000,
-      saved: 15000,
-      date: "2026-12-31",
-    },
-    {
-      id: 2,
-      name: "Travel",
-      icon: "✈️",
-      category: "Travel",
-      target: 30000,
-      saved: 8000,
-      date: "2027-03-31",
-    },
-  ];
-}
-
-const defaultBudget = 20000;
+const defaultBudget = 0;
 const defaultGuardThreshold = 80;
 
 function loadLocal(key, fallback) {
@@ -389,14 +139,6 @@ function saveLocal(key, value) {
 
 function formatCurrency(value) {
   return `₹${Number(value || 0).toLocaleString("en-IN")}`;
-}
-
-function isSameMonth(dateString, reference = new Date()) {
-  const date = new Date(`${dateString}T00:00:00`);
-  return (
-    date.getFullYear() === reference.getFullYear() &&
-    date.getMonth() === reference.getMonth()
-  );
 }
 
 function formatDate(dateString) {
@@ -435,17 +177,11 @@ function getRelativeDateLabel(dateString) {
   return formatDate(dateString);
 }
 
-function daysLeftInMonth() {
-  const now = new Date();
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  return Math.max(lastDay - now.getDate() + 1, 1);
-}
-
 /* ==========================================================================
    AUTH SCREEN (Login & Create Account)
    ========================================================================== */
 
-function AuthScreen({ onLogin, onGuestLogin }) {
+function AuthScreen({ onLogin }) {
   const [tab, setTab] = useState("login");
   const [loading, setLoading] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
@@ -454,7 +190,6 @@ function AuthScreen({ onLogin, onGuestLogin }) {
   const [signupName, setSignupName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
-  const [signupBudget, setSignupBudget] = useState("20000");
 
   // Forgot password OTP flow
   const [forgotStep, setForgotStep] = useState("email"); // "email" | "otp" | "newPassword"
@@ -488,17 +223,6 @@ function AuthScreen({ onLogin, onGuestLogin }) {
         return;
       }
     } catch (err) {
-      // Check offline local users fallback if server unreachable
-      const users = loadLocal("pace_users", []);
-      const localUser = users.find(
-        (u) =>
-          u.email.toLowerCase() === loginEmail.trim().toLowerCase() &&
-          u.password === loginPassword
-      );
-      if (localUser) {
-        onLogin(localUser);
-        return;
-      }
       setError(err.message || "Invalid email or password. Please try again.");
     } finally {
       setLoading(false);
@@ -513,7 +237,6 @@ function AuthScreen({ onLogin, onGuestLogin }) {
     const name = signupName.trim();
     const email = signupEmail.trim().toLowerCase();
     const password = signupPassword;
-    const budget = Number(signupBudget) || 20000;
 
     if (!name || !email || !password) {
       setError("Please fill in your name, email, and password.");
@@ -536,42 +259,20 @@ function AuthScreen({ onLogin, onGuestLogin }) {
         name,
         email,
         password,
-        monthlyBudget: budget,
       });
 
       // Save initial local structures
-      saveLocal(`pace_${res.user.id}_transactions`, []);
-      saveLocal(`pace_${res.user.id}_goals`, []);
-      saveLocal(`pace_${res.user.id}_monthly-budget`, budget);
-      saveLocal(`pace_${res.user.id}_category-budgets`, {});
-      saveLocal(`pace_${res.user.id}_guard-threshold`, 80);
+      saveLocal(`pace_usr_${res.user.id}_transactions`, []);
+      saveLocal(`pace_usr_${res.user.id}_goals`, []);
+      saveLocal(`pace_usr_${res.user.id}_monthly-budget`, 0);
+      saveLocal(`pace_usr_${res.user.id}_category-budgets`, {});
+      saveLocal(`pace_usr_${res.user.id}_guard-threshold`, 80);
 
       onLogin(res.user);
     } catch (err) {
-      // Local fallback if server unreachable
-      const users = loadLocal("pace_users", []);
-      if (users.some((u) => u.email.toLowerCase() === email)) {
-        setError("An account with this email already exists. Please log in.");
-        setLoading(false);
-        return;
-      }
-
-      const newUser = {
-        id: "usr_" + Date.now(),
-        name,
-        email,
-        password,
-        createdAt: toDateKey(),
-      };
-
-      saveLocal("pace_users", [...users, newUser]);
-      saveLocal(`pace_${newUser.id}_transactions`, []);
-      saveLocal(`pace_${newUser.id}_goals`, []);
-      saveLocal(`pace_${newUser.id}_monthly-budget`, budget);
-      saveLocal(`pace_${newUser.id}_category-budgets`, {});
-      saveLocal(`pace_${newUser.id}_guard-threshold`, 80);
-
-      onLogin(newUser);
+      setError(
+        err.message || "Could not create your account. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -592,12 +293,16 @@ function AuthScreen({ onLogin, onGuestLogin }) {
     setLoading(true);
     try {
       const res = await apiForgotPassword(email);
-      setSuccessMsg(res.message || "A 6-digit OTP verification code has been sent to your email!");
+      setSuccessMsg(
+        res.message ||
+          "A 6-digit OTP verification code has been sent to your email!",
+      );
       setForgotStep("otp");
     } catch (err) {
-      // Fallback for offline testing
-      setSuccessMsg("Verification code sent to " + email);
-      setForgotStep("otp");
+      setError(
+        err.message ||
+          "Could not send the verification code. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -617,18 +322,17 @@ function AuthScreen({ onLogin, onGuestLogin }) {
 
     setLoading(true);
     try {
-      const res = await apiVerifyOtp(forgotEmail.trim().toLowerCase(), cleanOtp);
+      const res = await apiVerifyOtp(
+        forgotEmail.trim().toLowerCase(),
+        cleanOtp,
+      );
       setResetToken(res.resetToken || "valid_token");
-      setSuccessMsg("Code verified successfully! Please enter your new password.");
+      setSuccessMsg(
+        "Code verified successfully! Please enter your new password.",
+      );
       setForgotStep("newPassword");
     } catch (err) {
-      if (cleanOtp.length >= 4) {
-        setResetToken("offline_token");
-        setSuccessMsg("Code verified! Please enter your new password.");
-        setForgotStep("newPassword");
-      } else {
-        setError(err.message || "Invalid or expired verification code.");
-      }
+      setError(err.message || "Invalid or expired verification code.");
     } finally {
       setLoading(false);
     }
@@ -667,18 +371,9 @@ function AuthScreen({ onLogin, onGuestLogin }) {
         newPassword: newPass,
       });
 
-      // Update local storage too if user was stored locally
-      const users = loadLocal("pace_users", []);
-      const userIndex = users.findIndex(
-        (u) => u.email && u.email.toLowerCase() === forgotEmail.trim().toLowerCase()
+      setSuccessMsg(
+        res.message || "Password reset successfully! You can now log in.",
       );
-      if (userIndex !== -1) {
-        const updatedUsers = [...users];
-        updatedUsers[userIndex] = { ...updatedUsers[userIndex], password: newPass };
-        saveLocal("pace_users", updatedUsers);
-      }
-
-      setSuccessMsg(res.message || "Password reset successfully! You can now log in.");
       setLoginEmail(forgotEmail);
       setLoginPassword("");
       setForgotNewPassword("");
@@ -728,10 +423,7 @@ function AuthScreen({ onLogin, onGuestLogin }) {
             Create Account
           </button>
           {tab === "forgot" && (
-            <button
-              type="button"
-              className="auth-tab active"
-            >
+            <button type="button" className="auth-tab active">
               Reset Password
             </button>
           )}
@@ -810,20 +502,9 @@ function AuthScreen({ onLogin, onGuestLogin }) {
               Create Password
               <input
                 type="password"
-                placeholder="Min 4 characters"
+                placeholder="Min 6 characters"
                 value={signupPassword}
                 onChange={(e) => setSignupPassword(e.target.value)}
-              />
-            </label>
-
-            <label>
-              Monthly Spending Budget
-              <input
-                type="number"
-                placeholder="₹20,000"
-                min="1000"
-                value={signupBudget}
-                onChange={(e) => setSignupBudget(e.target.value)}
               />
             </label>
 
@@ -878,7 +559,9 @@ function AuthScreen({ onLogin, onGuestLogin }) {
                 </label>
 
                 <button className="submit-btn" type="submit" disabled={loading}>
-                  {loading ? "Sending Secure OTP..." : "Send 6-Digit OTP to Email"}
+                  {loading
+                    ? "Sending Secure OTP..."
+                    : "Send 6-Digit OTP to Email"}
                 </button>
               </form>
             )}
@@ -886,7 +569,13 @@ function AuthScreen({ onLogin, onGuestLogin }) {
             {forgotStep === "otp" && (
               <form className="auth-form" onSubmit={handleVerifyOtpSubmit}>
                 <div className="otp-box-wrapper">
-                  <label style={{ display: "block", marginBottom: 8, color: "#cbd5e1" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: 8,
+                      color: "#cbd5e1",
+                    }}
+                  >
                     Enter 6-Digit Verification Code
                   </label>
                   <input
@@ -895,7 +584,9 @@ function AuthScreen({ onLogin, onGuestLogin }) {
                     maxLength={6}
                     placeholder="••••••"
                     value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                    onChange={(e) =>
+                      setOtpCode(e.target.value.replace(/\D/g, ""))
+                    }
                     autoFocus
                     required
                   />
@@ -906,7 +597,13 @@ function AuthScreen({ onLogin, onGuestLogin }) {
                   {loading ? "Verifying Code..." : "Verify Code & Proceed"}
                 </button>
 
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginTop: 10,
+                  }}
+                >
                   <button
                     type="button"
                     className="auth-link-btn"
@@ -955,7 +652,9 @@ function AuthScreen({ onLogin, onGuestLogin }) {
                 </label>
 
                 <button className="submit-btn" type="submit" disabled={loading}>
-                  {loading ? "Updating Password..." : "Set New Password & Log In"}
+                  {loading
+                    ? "Updating Password..."
+                    : "Set New Password & Log In"}
                 </button>
               </form>
             )}
@@ -966,41 +665,16 @@ function AuthScreen({ onLogin, onGuestLogin }) {
 
         <GoogleSignInButton
           onGoogleSuccess={(googleUser) => {
-            const users = loadLocal("pace_users", []);
-            const existing = users.find(
-              (u) => u.email && u.email.toLowerCase() === googleUser.email.toLowerCase()
-            );
-            if (!existing) {
-              const freshUser = {
-                id: googleUser.id || "usr_g_" + Date.now(),
-                name: googleUser.name,
-                email: googleUser.email,
-                picture: googleUser.picture || "",
-                createdAt: toDateKey(),
-              };
-              saveLocal("pace_users", [...users, freshUser]);
-              saveLocal(`pace_${freshUser.id}_transactions`, []);
-              saveLocal(`pace_${freshUser.id}_goals`, []);
-              saveLocal(`pace_${freshUser.id}_monthly-budget`, 20000);
-              saveLocal(`pace_${freshUser.id}_category-budgets`, {});
-              saveLocal(`pace_${freshUser.id}_guard-threshold`, 80);
-              onLogin(freshUser);
-            } else {
-              onLogin(existing);
+            if (!googleUser) {
+              setError(
+                "Google sign-in did not return an account. Please try again.",
+              );
+              return;
             }
+            onLogin(googleUser);
           }}
           onError={setError}
         />
-
-        <div className="auth-divider">or explore</div>
-
-        <button
-          type="button"
-          className="guest-btn"
-          onClick={onGuestLogin}
-        >
-          Try Demo Account (Sample Data)
-        </button>
       </div>
     </div>
   );
@@ -1012,479 +686,426 @@ function AuthScreen({ onLogin, onGuestLogin }) {
 
 function HomePage({
   currentUser,
-  selectedMonthKey,
-  setSelectedMonthKey,
   monthlyFinances,
-  events = [],
-  loans = [],
   goals = [],
+  loans = [],
   transactions = [],
-  guardActive,
-  overLimitCategories = [],
-  nearLimitCategories = [],
-  categoryBudgetAlerts = [],
   navigateTo,
-  openNewGoalForm,
-  editGoal,
-  deleteGoal,
-  openTransactionForm,
-  deleteTransaction,
-  onOpenOcr,
-  onOpenStatementImport,
 }) {
-  const userInitial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "P";
-  const finances = monthlyFinances;
-  const isSurplus = (finances?.netAvailableCashFlow || 0) >= 0;
+  const userInitial = currentUser?.name
+    ? currentUser.name.charAt(0).toUpperCase()
+    : "P";
 
-  // Active wedding or event preview
-  const primaryEvent = events.length > 0 ? calculateEventSummary(events[0], transactions) : null;
-  // Active loan preview
-  const primaryLoan = loans.length > 0 ? loans[0] : null;
+  const finances = monthlyFinances || {};
+  const netAvailable = Number(finances.netAvailableCashFlow || 0);
+  const totalIncome = Number(finances.totalIncome || 0);
+  const actualSpending = Number(finances.actualSpending || 0);
+  const committedOutflows = Number(finances.committedOutflows || 0);
+  const remainingBudget = Math.max(Number(finances.remainingBudget || 0), 0);
+  const safeToSpendToday = Math.max(Number(finances.safeToSpendDaily || 0), 0);
+
+  const spendingPercentage =
+    totalIncome > 0
+      ? Math.min((actualSpending / totalIncome) * 100, 100)
+      : 0;
+
+  const recentTransactions = [...transactions]
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+    .slice(0, 4);
+
+  const savingsTotal = transactions
+    .filter((transaction) => transaction.type === "savings")
+    .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount || 0)), 0);
+
+  const financeShortcuts = [
+    {
+      key: "savings",
+      icon: "💰",
+      title: "Savings",
+      value: formatCurrency(savingsTotal),
+      meta: "Total recorded",
+      tone: "green",
+      onClick: () => navigateTo("savings"),
+    },
+    {
+      key: "emi",
+      icon: "💳",
+      title: "EMI",
+      value: formatCurrency(finances.totalDebtRepayment || 0),
+      meta: "Loan repayments",
+      tone: "coral",
+      onClick: () => navigateTo("loans"),
+    },
+    {
+      key: "loans",
+      icon: "🏦",
+      title: "Loans",
+      value: `${loans.length} active`,
+      meta: "Manage loans",
+      tone: "purple",
+      onClick: () => navigateTo("loans"),
+    },
+    {
+      key: "budget",
+      icon: "▣",
+      title: "Budget",
+      value: formatCurrency(remainingBudget),
+      meta: "Remaining this month",
+      tone: "blue",
+      onClick: () => navigateTo("budgets"),
+    },
+    {
+      key: "goals",
+      icon: "🎯",
+      title: "Goals",
+      value: `${goals.length} active`,
+      meta: "Savings targets",
+      tone: "orange",
+      onClick: () => navigateTo("goals"),
+    },
+    {
+      key: "review",
+      icon: "🗓️",
+      title: "Monthly Review",
+      value: "View",
+      meta: "10-part review",
+      tone: "pink",
+      onClick: () => navigateTo("monthly-review"),
+    },
+    {
+      key: "reports",
+      icon: "▥",
+      title: "Reports",
+      value: "View",
+      meta: "Trends & insights",
+      tone: "lavender",
+      onClick: () => navigateTo("reports"),
+    },
+  ];
 
   return (
-    <div className="page-content home-page">
-      <header className="header">
-        <div className="brand-group">
-          <PaceLogo size={40} variant="tile" className="brand-logo" />
-          <div className="brand-text">
-            <h1 className="logo">PACE</h1>
-            <p className="tagline">Spend with intention. Save with purpose.</p>
+    <div className="page-content home-page pace-dashboard">
+      <header className="dashboard-header">
+        <div className="dashboard-brand">
+          <PaceLogo size={46} variant="tile" className="dashboard-logo" />
+          <div>
+            <h1>PACE</h1>
+            <p>Spend with intention. Save with purpose.</p>
           </div>
         </div>
 
         <button
-          className="profile-btn"
           type="button"
+          className="dashboard-profile-btn"
           onClick={() => navigateTo("settings")}
           aria-label="Open settings"
         >
-          {userInitial}
+          {currentUser?.picture ? (
+            <img src={currentUser.picture} alt="" />
+          ) : (
+            <span>{userInitial}</span>
+          )}
         </button>
       </header>
 
-      {/* Month Switcher Navigation Bar */}
-      <MonthSwitcher
-        currentMonthKey={selectedMonthKey}
-        onMonthChange={setSelectedMonthKey}
-      />
-
-      {/* Net Available Cash Flow Hero Card */}
-      <section className={`cash-flow-hero ${isSurplus ? "surplus" : "deficit"}`}>
-        <div className="cash-flow-header">
-          <div className="cash-flow-badge">
-            <span className="pulse-dot" />
-            <span>NET AVAILABLE CASH FLOW</span>
+      <section className="dashboard-balance-card">
+        <div className="dashboard-balance-top">
+          <div>
+            <span className="dashboard-eyebrow">NET AVAILABLE BALANCE</span>
+            <h2 className={netAvailable >= 0 ? "positive" : "negative"}>
+              {formatCurrency(netAvailable)}
+            </h2>
+            <p>After upcoming bills & commitments</p>
           </div>
-          <span className={`status-pill ${isSurplus ? "surplus" : "deficit"}`}>
-            {isSurplus ? "SURPLUS" : "DEFICIT / MILESTONE"}
+          <span className={`dashboard-balance-status ${netAvailable >= 0 ? "positive" : "negative"}`}>
+            {netAvailable >= 0 ? "Available" : "Overcommitted"}
           </span>
         </div>
 
-        <h2 className="cash-flow-amount">
-          {formatCurrency(finances.netAvailableCashFlow)}
-        </h2>
-
-        <div className="cash-flow-formula">
-          <small>
-            Formula: Income ({formatCurrency(finances.totalIncome)}) − Committed Outflows ({formatCurrency(finances.committedOutflows)})
-          </small>
-        </div>
-
-        {/* Progress bar to show committed outflows vs income */}
-        <div className="progress">
-          <div
-            className={`progress-bar ${finances.committedOutflows > finances.totalIncome ? "danger" : "safe"}`}
-            style={{
-              width: `${finances.totalIncome > 0 ? Math.min((finances.committedOutflows / finances.totalIncome) * 100, 100) : 0}%`,
-            }}
-          />
-        </div>
-        <div className="progress-info">
-          <span>
-            Committed: {finances.totalIncome > 0 ? ((finances.committedOutflows / finances.totalIncome) * 100).toFixed(0) : 0}% of income
-          </span>
-          <span>
-            {isSurplus
-              ? `${formatCurrency(finances.netAvailableCashFlow)} surplus left`
-              : `${formatCurrency(Math.abs(finances.netAvailableCashFlow))} overcommitted`}
-          </span>
-        </div>
-      </section>
-
-      {/* The 5 Financial Pillars Grid */}
-      <section className="five-pillars-section">
-        <div className="section-title-sm">
-          <span>5 FINANCIAL PILLARS</span>
-          <small>Strict isolation of living spending vs wealth & debt</small>
-        </div>
-
-        <div className="five-pillars-grid">
-          <div className="pillar-card income">
-            <span className="pillar-icon">💰</span>
-            <div className="pillar-body">
-              <small>1. Income</small>
-              <strong>{formatCurrency(finances.totalIncome)}</strong>
-              <span>Salary & inflows</span>
-            </div>
+        <div className="dashboard-balance-breakdown">
+          <div>
+            <span>Income</span>
+            <strong>{formatCurrency(totalIncome)}</strong>
           </div>
-
-          <div className="pillar-card spending">
-            <span className="pillar-icon">💸</span>
-            <div className="pillar-body">
-              <small>2. Actual Spending</small>
-              <strong>{formatCurrency(finances.actualSpending)}</strong>
-              <span>Pure living expenses</span>
-            </div>
+          <div>
+            <span>Spending</span>
+            <strong>{formatCurrency(actualSpending)}</strong>
           </div>
-
-          <div className="pillar-card wealth">
-            <span className="pillar-icon">🌱</span>
-            <div className="pillar-body">
-              <small>3. Wealth Generation</small>
-              <strong>{formatCurrency(finances.wealthGeneration)}</strong>
-              <span>SIP ({formatCurrency(finances.totalInvestments)}) + Save ({formatCurrency(finances.totalSavings)})</span>
-            </div>
-          </div>
-
-          <div className="pillar-card debt">
-            <span className="pillar-icon">🛡️</span>
-            <div className="pillar-body">
-              <small>4. Debt Repayment</small>
-              <strong>{formatCurrency(finances.totalDebtRepayment)}</strong>
-              <span>Loan EMIs & dues</span>
-            </div>
-          </div>
-
-          <div className="pillar-card internal">
-            <span className="pillar-icon">🔄</span>
-            <div className="pillar-body">
-              <small>5. Internal Transfers</small>
-              <strong>{formatCurrency(finances.totalTransfers + finances.totalCashWithdrawals)}</strong>
-              <span>Bank-to-bank & ATM cash movements (not outflows)</span>
-            </div>
+          <div>
+            <span>Committed</span>
+            <strong>{formatCurrency(committedOutflows)}</strong>
           </div>
         </div>
       </section>
 
-      {/* Major Heads Breakdown */}
-      <section className="major-heads-section">
-        <div className="section-heading">
-          <h2>Major Head Hierarchy</h2>
-          <button className="text-btn" type="button" onClick={() => navigateTo("reports")}>
-            Full Analysis →
-          </button>
-        </div>
-
-        <div className="major-heads-cards-grid">
-          <div className="major-head-card">
-            <div className="major-head-top">
-              <span>🏠 Essentials</span>
-              <strong>{formatCurrency(finances.majorHeadTotals?.Essentials || 0)}</strong>
-            </div>
-            <small>Housing, groceries, utilities, health</small>
-          </div>
-
-          <div className="major-head-card">
-            <div className="major-head-top">
-              <span>☕ Lifestyle</span>
-              <strong>{formatCurrency(finances.majorHeadTotals?.Lifestyle || 0)}</strong>
-            </div>
-            <small>Dining, shopping, weddings, travel</small>
-          </div>
-
-          <div className="major-head-card">
-            <div className="major-head-top">
-              <span>🛡️ Financial Commitments</span>
-              <strong>{formatCurrency(finances.majorHeadTotals?.["Financial Commitments"] || 0)}</strong>
-            </div>
-            <small>Home loan, car loan, insurance</small>
-          </div>
-
-          <div className="major-head-card">
-            <div className="major-head-top">
-              <span>🌱 Wealth & Future</span>
-              <strong>{formatCurrency(finances.majorHeadTotals?.["Wealth & Future"] || 0)}</strong>
-            </div>
-            <small>SIPs, mutual funds, emergency funds</small>
-          </div>
-        </div>
-      </section>
-
-      {/* Milestone Events Preview Widget */}
-      {primaryEvent && (
-        <section className="event-preview-widget" onClick={() => navigateTo("events")}>
-          <div className="event-widget-top">
-            <div className="event-widget-title">
-              <span className="event-widget-icon">{primaryEvent.icon}</span>
-              <div>
-                <strong>{primaryEvent.name}</strong>
-                <small>Milestone Budget Tracking</small>
-              </div>
-            </div>
-            <span className="badge-tag">ACTIVE EVENT</span>
-          </div>
-
-          <div className="event-widget-stats">
+      <section className="dashboard-overview-grid">
+        <div className="dashboard-spending-card">
+          <div className="dashboard-card-heading">
             <div>
-              <small>Spent</small>
-              <strong>{formatCurrency(primaryEvent.totalSpent)}</strong>
+              <span className="dashboard-section-kicker">THIS MONTH</span>
+              <h2>Spending</h2>
             </div>
-            <div>
-              <small>Budget</small>
-              <strong>{formatCurrency(primaryEvent.budget)}</strong>
-            </div>
-            <div>
-              <small>Remaining</small>
-              <strong>{formatCurrency(primaryEvent.remaining)}</strong>
-            </div>
+            <button type="button" onClick={() => navigateTo("activity")}>See all →</button>
           </div>
 
-          <div className="progress">
+          <div className="dashboard-spending-content">
             <div
-              className={`progress-bar ${primaryEvent.isOverBudget ? "danger" : "warning"}`}
-              style={{ width: `${Math.min(primaryEvent.actualPercentage, 100)}%` }}
-            />
-          </div>
-          <div className="widget-bottom-action">
-            <span>{primaryEvent.actualPercentage.toFixed(1)}% of milestone budget allocated</span>
-            <span className="action-link">View Event Details →</span>
-          </div>
-        </section>
-      )}
-
-      {/* Loans & Prepayment Simulator Preview Widget */}
-      {primaryLoan && (
-        <section className="loan-preview-widget" onClick={() => navigateTo("loans")}>
-          <div className="loan-widget-top">
-            <div className="loan-widget-title">
-              <span className="loan-widget-icon">{primaryLoan.icon || "🏠"}</span>
+              className="dashboard-spending-ring"
+              style={{ "--spending-progress": `${spendingPercentage}%` }}
+            >
               <div>
-                <strong>{primaryLoan.name} ({primaryLoan.lender})</strong>
-                <small>Outstanding: {formatCurrency(primaryLoan.currentOutstanding)} • EMI: {formatCurrency(primaryLoan.emiAmount)}/mo</small>
+                <strong>{spendingPercentage.toFixed(0)}%</strong>
+                <span>spent</span>
               </div>
             </div>
-            <span className="badge-tag simulator">SIMULATOR</span>
+            <div className="dashboard-spending-total">
+              <span>Actual spending</span>
+              <strong>{formatCurrency(actualSpending)}</strong>
+              <small>{formatCurrency(Math.max(totalIncome - actualSpending, 0))} income remaining</small>
+            </div>
           </div>
-
-          <div className="loan-widget-insight">
-            <span className="bulb">💡</span>
-            <span>Pay ₹2,000 extra/mo to save ₹4.8+ Lakhs and finish years early!</span>
-          </div>
-
-          <div className="widget-bottom-action">
-            <span>Interest Rate: {primaryLoan.interestRate}% p.a.</span>
-            <span className="action-link">Open Prepayment Simulator →</span>
-          </div>
-        </section>
-      )}
-
-      {/* Safe to Spend Today Card */}
-      <section className="safe-card">
-        <div className="safe-badge">
-          <span className="pulse-dot" />
-          <span>SAFE TO SPEND TODAY</span>
-        </div>
-        <h2>{formatCurrency(finances.safeToSpendDaily)}</h2>
-        <p className="safe-text">Based on remaining monthly budget of {formatCurrency(Math.max(finances.remainingBudget, 0))}</p>
-
-        <div className="progress">
-          <div
-            className="progress-bar safe-progress-bar"
-            style={{ width: `${Math.min(finances.budgetUsed, 100)}%` }}
-          />
         </div>
 
-        <div className="progress-info">
-          <span>Budget used ({finances.budgetUsed.toFixed(0)}%)</span>
-          <span>{formatCurrency(Math.max(finances.remainingBudget, 0))} remaining</span>
+        <div className="dashboard-safe-card">
+          <div className="dashboard-card-heading">
+            <div>
+              <span className="dashboard-section-kicker">TODAY</span>
+              <h2>Safe to Spend</h2>
+            </div>
+            <span className="dashboard-safe-icon">✓</span>
+          </div>
+          <strong className="dashboard-safe-amount">{formatCurrency(safeToSpendToday)}</strong>
+          <p>Based on your remaining monthly budget.</p>
+          <div className="dashboard-safe-meta">
+            <span>{formatCurrency(remainingBudget)} remaining</span>
+          </div>
         </div>
       </section>
 
-      {/* Quick Tools */}
-      <div className="home-tools-grid">
-        <button
-          type="button"
-          className="home-tool-card ocr"
-          onClick={onOpenOcr}
-        >
-          <div className="home-tool-icon">📸</div>
-          <div className="home-tool-content">
-            <strong>Scan Bill (OCR)</strong>
-            <small>Extract from bill photo</small>
+      <section className="dashboard-section dashboard-finances-section">
+        <div className="dashboard-section-heading">
+          <div>
+            <span className="dashboard-section-kicker">QUICK ACCESS</span>
+            <h2>Your Finances</h2>
           </div>
-          <span className="home-tool-arrow">→</span>
-        </button>
-
-        <button
-          type="button"
-          className="home-tool-card stmt"
-          onClick={onOpenStatementImport}
-        >
-          <div className="home-tool-icon">📑</div>
-          <div className="home-tool-content">
-            <strong>Bank / GPay</strong>
-            <small>PDF, Excel, Screen</small>
-          </div>
-          <span className="home-tool-arrow">→</span>
-        </button>
-      </div>
-
-      {/* Spending Guard Alert */}
-      <div
-        className={`alert-card ${
-          guardActive || overLimitCategories.length > 0 ? "alert-warning" : ""
-        }`}
-      >
-        <div className="alert-icon">
-          {overLimitCategories.length > 0 || guardActive ? "!" : "✓"}
         </div>
 
-        <div>
-          <h3>
-            {overLimitCategories.length > 0
-              ? `${overLimitCategories[0].category} budget exceeded`
-              : guardActive
-              ? "Budget warning"
-              : "Financial health on track"}
-          </h3>
-
-          <p>
-            {overLimitCategories.length > 0
-              ? `${formatCurrency(overLimitCategories[0].spent)} spent against a ${formatCurrency(overLimitCategories[0].limit)} limit.`
-              : guardActive
-              ? `You've used ${finances.budgetUsed.toFixed(0)}% of your monthly budget.`
-              : nearLimitCategories.length > 0
-              ? `${nearLimitCategories[0].category} is at ${nearLimitCategories[0].percentage.toFixed(0)}% of limit.`
-              : `You have ${formatCurrency(Math.max(finances.remainingBudget, 0))} remaining for ${finances.monthName}.`}
-          </p>
-        </div>
-      </div>
-
-      {/* Category Budgets */}
-      <section className="section">
-        <div className="section-heading">
-          <h2>Category Budgets</h2>
-          <button className="text-btn" type="button" onClick={() => navigateTo("budgets")}>
-            Manage →
-          </button>
-        </div>
-
-        {categoryBudgetAlerts.length === 0 ? (
-          <div className="category-budget-empty">
-            <span>💰</span>
-            <div>
-              <strong>No category limits set</strong>
-              <small>Set limits for Food, Shopping, Transport and more.</small>
-            </div>
-            <button type="button" onClick={() => navigateTo("budgets")}>
-              Set limits →
+        <div className="dashboard-finance-grid">
+          {financeShortcuts.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={`dashboard-finance-card ${item.tone}`}
+              onClick={item.onClick}
+            >
+              <span className="dashboard-finance-icon">{item.icon}</span>
+              <span className="dashboard-finance-copy">
+                <strong>{item.title}</strong>
+                <b>{item.value}</b>
+                <small>{item.meta}</small>
+              </span>
+              <span className="dashboard-finance-arrow">›</span>
             </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="dashboard-section dashboard-recent-section">
+        <div className="dashboard-section-heading">
+          <div>
+            <span className="dashboard-section-kicker">LATEST</span>
+            <h2>Recent Activity</h2>
+          </div>
+          <button type="button" className="dashboard-link" onClick={() => navigateTo("activity")}>See all →</button>
+        </div>
+
+        {recentTransactions.length === 0 ? (
+          <div className="dashboard-empty-activity">
+            <span>↕</span>
+            <div>
+              <strong>No activity yet</strong>
+              <small>Your latest transactions will appear here.</small>
+            </div>
           </div>
         ) : (
-          <div className="dashboard-category-budgets">
-            {categoryBudgetAlerts.map((item) => {
-              const percentage = item.percentage;
-              const progress = Math.min(percentage, 100);
-
+          <div className="dashboard-recent-list">
+            {recentTransactions.map((transaction) => {
+              const isIncome = transaction.type === "income";
+              const isPositive = isIncome;
+              const amount = formatCurrency(Math.abs(Number(transaction.amount || 0)));
+              const icon = CATEGORY_ICONS[transaction.category] || (isIncome ? "↗" : "₹");
               return (
-                <div
-                  className={`dashboard-category-budget ${item.overLimit ? "over-budget" : ""}`}
-                  key={item.category}
+                <button
+                  type="button"
+                  className="dashboard-recent-row"
+                  key={transaction.id}
+                  onClick={() => navigateTo("activity")}
                 >
-                  <div className="dashboard-category-top">
-                    <div className="dashboard-category-name">
-                      <span>{CATEGORY_ICONS[item.category] || "💳"}</span>
-                      <div>
-                        <strong>{item.category}</strong>
-                        <small>
-                          {formatCurrency(item.spent)} spent of {formatCurrency(item.limit)}
-                        </small>
-                      </div>
-                    </div>
-                    <strong>{percentage.toFixed(0)}%</strong>
-                  </div>
-
-                  <div className="progress">
-                    <div className="progress-bar" style={{ width: `${progress}%` }} />
-                  </div>
-
-                  <div className="dashboard-category-bottom">
-                    <span>
-                      {item.overLimit
-                        ? `${formatCurrency(item.spent - item.limit)} over limit`
-                        : `${formatCurrency(Math.max(item.limit - item.spent, 0))} left`}
-                    </span>
-                    <span>{formatCurrency(item.spent)} spent</span>
-                  </div>
-                </div>
+                  <span className="dashboard-recent-icon">{icon}</span>
+                  <span className="dashboard-recent-copy">
+                    <strong>{transaction.title || transaction.category || "Transaction"}</strong>
+                    <small>{transaction.category || transaction.type || "Transaction"}</small>
+                  </span>
+                  <strong className={isPositive ? "amount-positive" : "amount-negative"}>
+                    {isPositive ? "+" : "−"} {amount}
+                  </strong>
+                </button>
               );
             })}
           </div>
         )}
       </section>
+    </div>
+  );
+}
 
-      {/* Goals preview */}
-      <section className="section">
-        <div className="section-heading">
-          <h2>Your Goals</h2>
-          <button className="text-btn" type="button" onClick={() => navigateTo("goals")}>
-            View all →
-          </button>
+function SavingsPage({
+  transactions = [],
+  goals = [],
+  openTransactionForm,
+  navigateTo,
+}) {
+  const savingsTransactions = transactions
+    .filter((tx) => tx.type === "savings")
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+
+  const totalSaved = savingsTransactions.reduce(
+    (sum, tx) => sum + Math.abs(Number(tx.amount || 0)),
+    0,
+  );
+
+  return (
+    <div className="page-content page finance-page">
+      <div className="page-title-row">
+        <div className="page-title">
+          <span>PACE</span>
+          <h2>Savings</h2>
+          <p>Money you've intentionally set aside.</p>
         </div>
+        <button className="goal-add-btn" type="button" onClick={() => openTransactionForm({ type: "savings" })}>
+          + Add saving
+        </button>
+      </div>
 
+      <section className="finance-summary-card savings-summary-card">
+        <span className="card-label">TOTAL SAVED</span>
+        <strong>{formatCurrency(totalSaved)}</strong>
+        <small>{savingsTransactions.length} saving {savingsTransactions.length === 1 ? "entry" : "entries"}</small>
+      </section>
+
+      <section className="finance-section-card">
+        <div className="finance-section-heading">
+          <div>
+            <span className="dashboard-section-kicker">PURPOSE</span>
+            <h3>Savings Goals</h3>
+          </div>
+          <button type="button" className="text-btn" onClick={() => navigateTo("goals")}>Manage</button>
+        </div>
         {goals.length === 0 ? (
           <EmptyState
             icon="🎯"
-            title="No goals yet"
-            text="Create your first savings goal."
-            action="+ Create Goal"
-            onAction={openNewGoalForm}
+            title="No savings goals yet"
+            text="Create a goal when you want a specific purpose for your savings."
+            action="Create goal"
+            onAction={() => navigateTo("add")}
           />
         ) : (
-          <div className="dashboard-goals">
+          <div className="goals-list">
             {goals.slice(0, 3).map((goal) => (
-              <GoalCard
-                key={goal.id}
-                goal={goal}
-                compact
-                onEdit={editGoal}
-                onDelete={deleteGoal}
-              />
+              <GoalCard key={goal.id} goal={goal} compact />
             ))}
           </div>
         )}
       </section>
 
-      {/* Recent Transactions in Selected Month */}
-      <section className="transactions">
-        <div className="section-header">
-          <h2>Recent Activity ({finances.monthName})</h2>
-          <button type="button" onClick={() => navigateTo("activity")}>
-            View all ({finances.transactionsCount}) →
-          </button>
+      <section className="finance-section-card">
+        <div className="finance-section-heading">
+          <div>
+            <span className="dashboard-section-kicker">HISTORY</span>
+            <h3>Recent savings</h3>
+          </div>
+          <button type="button" className="text-btn" onClick={() => navigateTo("activity")}>See all</button>
         </div>
-
-        {transactions.length === 0 ? (
+        {savingsTransactions.length === 0 ? (
           <EmptyState
-            icon="💸"
-            title="No transactions yet"
-            text="Add your first income or expense transaction."
-            action="+ Add Transaction"
-            onAction={openTransactionForm}
+            icon="💰"
+            title="No savings recorded"
+            text="Your savings entries will appear here after you add them."
+            action="Add saving"
+            onAction={() => openTransactionForm({ type: "savings" })}
           />
         ) : (
-          transactions
-            .filter((t) => isDateInMonth(t.date, selectedMonthKey))
-            .slice(0, 6)
-            .map((transaction) => (
-              <Transaction
-                key={transaction.id}
-                transaction={transaction}
-                onDelete={deleteTransaction}
-                detailed
-              />
-            ))
+          <div className="transactions activity-list">
+            {savingsTransactions.slice(0, 5).map((tx) => (
+              <Transaction key={tx.id} transaction={tx} detailed />
+            ))}
+          </div>
         )}
+      </section>
+    </div>
+  );
+}
+
+function AddPage({ navigateTo, openTransactionForm, openNewGoalForm }) {
+  const transactionActions = [
+    ["💸", "Expense", "Record money spent", "expense"],
+    ["💰", "Income", "Record money received", "income"],
+    ["🏦", "Savings", "Move money into savings", "savings"],
+    ["📈", "Investment", "Record an investment", "investment"],
+    ["💳", "Debt / EMI", "Record a loan repayment", "debt_repayment"],
+    ["↔", "Transfer", "Move money between accounts", "transfer"],
+    ["💵", "Cash withdrawal", "Move money into cash", "cash_withdrawal"],
+  ];
+
+  const planActions = [
+    ["🎯", "Goal", "Set a savings target", () => openNewGoalForm()],
+    ["💰", "Budget", "Set your monthly spending plan", () => navigateTo("budgets")],
+    ["📅", "Event", "Create an event budget", () => navigateTo("events")],
+    ["💳", "Loan", "Add a loan or EMI plan", () => navigateTo("loans")],
+  ];
+
+  return (
+    <div className="page-content page add-page">
+      <div className="page-title">
+        <span>PACE</span>
+        <h2>Add</h2>
+        <p>Record money or set up a financial plan.</p>
+      </div>
+
+      <section className="add-section">
+        <div className="finance-section-heading">
+          <div>
+            <span className="dashboard-section-kicker">MONEY</span>
+            <h3>Add transaction</h3>
+          </div>
+        </div>
+        <div className="add-action-grid">
+          {transactionActions.map(([icon, title, meta, type]) => (
+            <button key={type} type="button" className="add-action-card" onClick={() => openTransactionForm({ type })}>
+              <span className="add-action-icon">{icon}</span>
+              <span><strong>{title}</strong><small>{meta}</small></span>
+              <b>›</b>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="add-section">
+        <div className="finance-section-heading">
+          <div>
+            <span className="dashboard-section-kicker">PLANS</span>
+            <h3>Set up a plan</h3>
+          </div>
+        </div>
+        <div className="add-action-grid">
+          {planActions.map(([icon, title, meta, onClick]) => (
+            <button key={title} type="button" className="add-action-card" onClick={onClick}>
+              <span className="add-action-icon">{icon}</span>
+              <span><strong>{title}</strong><small>{meta}</small></span>
+              <b>›</b>
+            </button>
+          ))}
+        </div>
       </section>
     </div>
   );
@@ -1500,9 +1121,8 @@ function ActivityPage({
   groupedTransactions,
   availableCategories,
   openTransactionForm,
-  deleteTransaction,
-  onOpenOcr,
   onOpenStatementImport,
+  deleteTransaction,
 }) {
   return (
     <div className="page-content page">
@@ -1513,37 +1133,14 @@ function ActivityPage({
           <p>All your transactions.</p>
         </div>
 
-        <button className="goal-add-btn" type="button" onClick={openTransactionForm}>
-          + Add
-        </button>
-      </div>
-
-      <div className="home-tools-grid">
-        <button
-          type="button"
-          className="home-tool-card ocr"
-          onClick={onOpenOcr}
-        >
-          <div className="home-tool-icon">📸</div>
-          <div className="home-tool-content">
-            <strong>Scan Bill (OCR)</strong>
-            <small>Extract from bill photo</small>
-          </div>
-          <span className="home-tool-arrow">→</span>
-        </button>
-
-        <button
-          type="button"
-          className="home-tool-card stmt"
-          onClick={onOpenStatementImport}
-        >
-          <div className="home-tool-icon">📑</div>
-          <div className="home-tool-content">
-            <strong>Bank / GPay</strong>
-            <small>PDF, Excel, Screen</small>
-          </div>
-          <span className="home-tool-arrow">→</span>
-        </button>
+        <div className="page-title-actions">
+          <button className="secondary-action-btn compact" type="button" onClick={onOpenStatementImport}>
+            Import
+          </button>
+          <button className="goal-add-btn" type="button" onClick={openTransactionForm}>
+            + Add
+          </button>
+        </div>
       </div>
 
       <div className="activity-toolbar">
@@ -1556,59 +1153,88 @@ function ActivityPage({
           />
         </div>
 
-        <div className="filter-row" style={{ overflowX: "auto", flexWrap: "nowrap", paddingBottom: "6px" }}>
+        <div
+          className="filter-row"
+          style={{
+            overflowX: "auto",
+            flexWrap: "nowrap",
+            paddingBottom: "6px",
+          }}
+        >
           <button
             type="button"
-            className={activityType === "all" ? "filter-chip active" : "filter-chip"}
+            className={
+              activityType === "all" ? "filter-chip active" : "filter-chip"
+            }
             onClick={() => setActivityType("all")}
           >
             All
           </button>
           <button
             type="button"
-            className={activityType === "expense" ? "filter-chip active" : "filter-chip"}
+            className={
+              activityType === "expense" ? "filter-chip active" : "filter-chip"
+            }
             onClick={() => setActivityType("expense")}
           >
             Expenses
           </button>
           <button
             type="button"
-            className={activityType === "income" ? "filter-chip active" : "filter-chip"}
+            className={
+              activityType === "income" ? "filter-chip active" : "filter-chip"
+            }
             onClick={() => setActivityType("income")}
           >
             Income
           </button>
           <button
             type="button"
-            className={activityType === "savings" ? "filter-chip active" : "filter-chip"}
+            className={
+              activityType === "savings" ? "filter-chip active" : "filter-chip"
+            }
             onClick={() => setActivityType("savings")}
           >
             Savings
           </button>
           <button
             type="button"
-            className={activityType === "investment" ? "filter-chip active" : "filter-chip"}
+            className={
+              activityType === "investment"
+                ? "filter-chip active"
+                : "filter-chip"
+            }
             onClick={() => setActivityType("investment")}
           >
             Investments
           </button>
           <button
             type="button"
-            className={activityType === "debt_repayment" ? "filter-chip active" : "filter-chip"}
+            className={
+              activityType === "debt_repayment"
+                ? "filter-chip active"
+                : "filter-chip"
+            }
             onClick={() => setActivityType("debt_repayment")}
           >
             Debt/EMI
           </button>
           <button
             type="button"
-            className={activityType === "transfer" ? "filter-chip active" : "filter-chip"}
+            className={
+              activityType === "transfer" ? "filter-chip active" : "filter-chip"
+            }
             onClick={() => setActivityType("transfer")}
           >
             Transfers
           </button>
           <button
             type="button"
-            className={activityType === "cash_withdrawal" ? "filter-chip active" : "filter-chip"}
+            className={
+              activityType === "cash_withdrawal"
+                ? "filter-chip active"
+                : "filter-chip"
+            }
             onClick={() => setActivityType("cash_withdrawal")}
           >
             Cash
@@ -1631,14 +1257,18 @@ function ActivityPage({
 
       {groupedTransactions.length === 0 ? (
         <EmptyState
-          icon="🔎"
-          title="Nothing found"
-          text="Try adding a transaction or adjust your filter."
-          action="Clear filters"
+          icon={activitySearch || activityType !== "all" || activityCategory !== "all" ? "🔎" : "🧾"}
+          title={activitySearch || activityType !== "all" || activityCategory !== "all" ? "Nothing found" : "No transactions yet"}
+          text={activitySearch || activityType !== "all" || activityCategory !== "all" ? "Try adjusting your search or filters." : "Your income, spending, savings and other money movements will appear here."}
+          action={activitySearch || activityType !== "all" || activityCategory !== "all" ? "Clear filters" : "Add transaction"}
           onAction={() => {
-            setActivitySearch("");
-            setActivityType("all");
-            setActivityCategory("all");
+            if (activitySearch || activityType !== "all" || activityCategory !== "all") {
+              setActivitySearch("");
+              setActivityType("all");
+              setActivityCategory("all");
+            } else {
+              openTransactionForm();
+            }
           }}
         />
       ) : (
@@ -1680,7 +1310,11 @@ function GoalsPage({ goals, openNewGoalForm, editGoal, deleteGoal }) {
           <p>Save for what matters.</p>
         </div>
 
-        <button className="goal-add-btn" type="button" onClick={openNewGoalForm}>
+        <button
+          className="goal-add-btn"
+          type="button"
+          onClick={openNewGoalForm}
+        >
           + Goal
         </button>
       </div>
@@ -1705,207 +1339,6 @@ function GoalsPage({ goals, openNewGoalForm, editGoal, deleteGoal }) {
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function MorePage({ navigateTo, currentUser, onOpenOcr, onOpenStatementImport }) {
-  return (
-    <div className="page-content page">
-      <div className="page-title">
-        <span>PACE</span>
-        <h2>More</h2>
-        <p>Tools, budgets & preferences</p>
-      </div>
-
-      <div className="more-menu-list">
-        <button
-          className="more-menu-card"
-          type="button"
-          onClick={() => navigateTo("reports")}
-        >
-          <div className="more-menu-left">
-            <span className="more-menu-icon" style={{ background: "rgba(168, 85, 247, 0.12)", color: "#c084fc" }}>
-              📊
-            </span>
-            <div className="more-menu-text">
-              <strong>Financial Reports & Comparison</strong>
-              <small>Month-to-month dynamic comparison & category shifts</small>
-            </div>
-          </div>
-          <span className="more-menu-arrow">→</span>
-        </button>
-
-        <button
-          className="more-menu-card"
-          type="button"
-          onClick={() => navigateTo("events")}
-        >
-          <div className="more-menu-left">
-            <span className="more-menu-icon" style={{ background: "rgba(244, 63, 94, 0.12)", color: "#fb7185" }}>
-              💍
-            </span>
-            <div className="more-menu-text">
-              <strong>Events & Milestones</strong>
-              <small>Weddings, travel & renovation budgets & tracking</small>
-            </div>
-          </div>
-          <span className="more-menu-arrow">→</span>
-        </button>
-
-        <button
-          className="more-menu-card"
-          type="button"
-          onClick={() => navigateTo("loans")}
-        >
-          <div className="more-menu-left">
-            <span className="more-menu-icon" style={{ background: "rgba(251, 146, 60, 0.12)", color: "#fb923c" }}>
-              💳
-            </span>
-            <div className="more-menu-text">
-              <strong>Loans & Prepayment Simulator</strong>
-              <small>Home loans, EMIs & "What if I pay extra?" simulator</small>
-            </div>
-          </div>
-          <span className="more-menu-arrow">→</span>
-        </button>
-
-        <button
-          className="more-menu-card"
-          type="button"
-          onClick={() => navigateTo("goals")}
-        >
-          <div className="more-menu-left">
-            <span className="more-menu-icon" style={{ background: "rgba(52, 211, 153, 0.12)", color: "#34d399" }}>
-              🎯
-            </span>
-            <div className="more-menu-text">
-              <strong>Savings Goals</strong>
-              <small>Emergency fund, vehicle & travel targets</small>
-            </div>
-          </div>
-          <span className="more-menu-arrow">→</span>
-        </button>
-
-        <button
-          className="more-menu-card"
-          type="button"
-          onClick={onOpenStatementImport}
-        >
-          <div className="more-menu-left">
-            <span className="more-menu-icon" style={{ background: "rgba(59, 130, 246, 0.12)", color: "#60a5fa" }}>
-              📑
-            </span>
-            <div className="more-menu-text">
-              <strong>Bank & GPay Statement</strong>
-              <small>Auto-import PDF, Excel, Screenshots & SMS</small>
-            </div>
-          </div>
-          <span className="more-menu-arrow">→</span>
-        </button>
-
-        <button
-          className="more-menu-card"
-          type="button"
-          onClick={onOpenOcr}
-        >
-          <div className="more-menu-left">
-            <span className="more-menu-icon" style={{ background: "rgba(236, 72, 153, 0.12)", color: "#f472b6" }}>
-              📸
-            </span>
-            <div className="more-menu-text">
-              <strong>Scan Bill / Receipt (OCR)</strong>
-              <small>Instant optical recognition from bill photo</small>
-            </div>
-          </div>
-          <span className="more-menu-arrow">→</span>
-        </button>
-
-        <button
-          className="more-menu-card"
-          type="button"
-          onClick={() => navigateTo("budgets")}
-        >
-          <div className="more-menu-left">
-            <span className="more-menu-icon" style={{ background: "rgba(99, 102, 241, 0.12)", color: "#818cf8" }}>
-              💰
-            </span>
-            <div className="more-menu-text">
-              <strong>Category Budgets</strong>
-              <small>Set & track limits for Food, Shopping & more</small>
-            </div>
-          </div>
-          <span className="more-menu-arrow">→</span>
-        </button>
-
-        <button
-          className="more-menu-card"
-          type="button"
-          onClick={() => navigateTo("guard")}
-        >
-          <div className="more-menu-left">
-            <span className="more-menu-icon" style={{ background: "rgba(245, 158, 11, 0.12)", color: "#fbbf24" }}>
-              🛡
-            </span>
-            <div className="more-menu-text">
-              <strong>Spending Guard</strong>
-              <small>Real-time budget alerts & safety thresholds</small>
-            </div>
-          </div>
-          <span className="more-menu-arrow">→</span>
-        </button>
-
-        <button
-          className="more-menu-card"
-          type="button"
-          onClick={() => navigateTo("insights")}
-        >
-          <div className="more-menu-left">
-            <span className="more-menu-icon" style={{ background: "rgba(6, 182, 212, 0.12)", color: "#38bdf8" }}>
-              📊
-            </span>
-            <div className="more-menu-text">
-              <strong>Monthly Insights</strong>
-              <small>Spending habits, daily averages & trends</small>
-            </div>
-          </div>
-          <span className="more-menu-arrow">→</span>
-        </button>
-
-        <button
-          className="more-menu-card"
-          type="button"
-          onClick={() => navigateTo("settings")}
-        >
-          <div className="more-menu-left">
-            <span className="more-menu-icon" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#34d399" }}>
-              🛡️
-            </span>
-            <div className="more-menu-text">
-              <strong>Security & Email Alerts</strong>
-              <small>Google OAuth, OTP Recovery & Live Notifications</small>
-            </div>
-          </div>
-          <span className="more-menu-arrow">→</span>
-        </button>
-
-        <button
-          className="more-menu-card"
-          type="button"
-          onClick={() => navigateTo("settings")}
-        >
-          <div className="more-menu-left">
-            <span className="more-menu-icon" style={{ background: "rgba(148, 163, 184, 0.12)", color: "#94a3b8" }}>
-              ⚙️
-            </span>
-            <div className="more-menu-text">
-              <strong>Account & Preferences</strong>
-              <small>{currentUser?.email || "Manage data & account"}</small>
-            </div>
-          </div>
-          <span className="more-menu-arrow">→</span>
-        </button>
-      </div>
     </div>
   );
 }
@@ -1967,7 +1400,7 @@ function BudgetsPage({
           {EXPENSE_CATEGORIES.map((category) => {
             const spent = currentMonthTransactions
               .filter(
-                (item) => item.type === "expense" && item.category === category
+                (item) => item.type === "expense" && item.category === category,
               )
               .reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
@@ -2037,10 +1470,10 @@ function SpendingGuardPage({
     overLimitCategories.length > 0
       ? "Category limit exceeded"
       : budgetUsed >= guardThreshold
-      ? "Warning active"
-      : nearLimitCategories.length > 0
-      ? "Category limit approaching"
-      : "You're on track";
+        ? "Warning active"
+        : nearLimitCategories.length > 0
+          ? "Category limit approaching"
+          : "You're on track";
 
   return (
     <div className="page-content page">
@@ -2070,12 +1503,12 @@ function SpendingGuardPage({
                   overLimitCategories.length === 1 ? "is" : "are"
                 } over the configured limit.`
               : budgetUsed >= guardThreshold
-              ? `You've used ${budgetUsed.toFixed(0)}% of your monthly budget.`
-              : nearLimitCategories.length > 0
-              ? `${nearLimitCategories[0].category} has reached ${nearLimitCategories[0].percentage.toFixed(
-                  0
-                )}% of its limit.`
-              : "Your spending is currently within the configured limits."}
+                ? `You've used ${budgetUsed.toFixed(0)}% of your monthly budget.`
+                : nearLimitCategories.length > 0
+                  ? `${nearLimitCategories[0].category} has reached ${nearLimitCategories[0].percentage.toFixed(
+                      0,
+                    )}% of its limit.`
+                  : "Your spending is currently within the configured limits."}
           </p>
         </div>
       </div>
@@ -2088,9 +1521,7 @@ function SpendingGuardPage({
 
           {categoryBudgetAlerts.map((item) => (
             <div
-              className={`guard-category ${
-                item.overLimit ? "over-limit" : ""
-              }`}
+              className={`guard-category ${item.overLimit ? "over-limit" : ""}`}
               key={item.category}
             >
               <div>
@@ -2209,11 +1640,12 @@ function InsightsPage({
 
 function SettingsPage({
   currentUser,
-  transactions,
-  goals,
+  transactions = [],
+  goals = [],
+  events = [],
+  loans = [],
   onLogout,
   onResetAccountData,
-  onLoadDemoData,
   onBack,
   onUpdateUser,
 }) {
@@ -2222,7 +1654,9 @@ function SettingsPage({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordStatus, setPasswordStatus] = useState({ type: "", msg: "" });
-  const [serverStatus, setServerStatus] = useState(null);
+  // Financial preferences local state
+  const [defaultPaymentMethod, setDefaultPaymentMethod] = useState("UPI");
+  
 
   // Email notifications state
   const [emailNotifs, setEmailNotifs] = useState(() => ({
@@ -2230,11 +1664,20 @@ function SettingsPage({
     loginAlerts: currentUser?.emailNotifications?.loginAlerts ?? true,
     monthlyReport: currentUser?.emailNotifications?.monthlyReport ?? true,
   }));
-  const [emailActionStatus, setEmailActionStatus] = useState({ type: "", msg: "" });
+  const [emailActionStatus, setEmailActionStatus] = useState({
+    type: "",
+    msg: "",
+  });
   const [emailLoading, setEmailLoading] = useState(false);
 
+  // Account Deletion Modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmPassword, setDeleteConfirmPassword] = useState("");
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   useEffect(() => {
-    checkServerHealth().then(setServerStatus);
     apiGetNotificationPrefs()
       .then((res) => {
         if (res?.emailNotifications) {
@@ -2243,10 +1686,6 @@ function SettingsPage({
       })
       .catch(() => {});
   }, []);
-
-  function handleCheckServer() {
-    checkServerHealth().then(setServerStatus);
-  }
 
   async function handleToggleNotif(key) {
     const updated = { ...emailNotifs, [key]: !emailNotifs[key] };
@@ -2258,25 +1697,6 @@ function SettingsPage({
     }
   }
 
-  async function handleSendTestEmail() {
-    setEmailLoading(true);
-    setEmailActionStatus({ type: "", msg: "" });
-    try {
-      const res = await apiSendTestEmail();
-      setEmailActionStatus({
-        type: "success",
-        msg: res.message || `Test email sent to ${currentUser?.email}! Check your inbox.`,
-      });
-    } catch (err) {
-      setEmailActionStatus({
-        type: "error",
-        msg: err.message || "Failed to send test email. Check server status.",
-      });
-    } finally {
-      setEmailLoading(false);
-    }
-  }
-
   async function handleSendReportEmail() {
     setEmailLoading(true);
     setEmailActionStatus({ type: "", msg: "" });
@@ -2284,31 +1704,13 @@ function SettingsPage({
       const res = await apiSendReportEmail();
       setEmailActionStatus({
         type: "success",
-        msg: res.message || `Financial statement sent to ${currentUser?.email}!`,
+        msg:
+          res.message || `Financial statement sent to ${currentUser?.email}!`,
       });
     } catch (err) {
       setEmailActionStatus({
         type: "error",
         msg: err.message || "Failed to send report. Check server status.",
-      });
-    } finally {
-      setEmailLoading(false);
-    }
-  }
-
-  async function handleTriggerBudgetAlert() {
-    setEmailLoading(true);
-    setEmailActionStatus({ type: "", msg: "" });
-    try {
-      const res = await apiTriggerBudgetAlert();
-      setEmailActionStatus({
-        type: "success",
-        msg: res.message || `Budget alert email dispatched to ${currentUser?.email}!`,
-      });
-    } catch (err) {
-      setEmailActionStatus({
-        type: "error",
-        msg: err.message || "Failed to send budget alert email.",
       });
     } finally {
       setEmailLoading(false);
@@ -2338,19 +1740,28 @@ function SettingsPage({
     }
 
     try {
-      // Try backend password change
       const res = await apiResetPassword({
         email: currentUser?.email,
         newPassword,
       }).catch(() => null);
 
-      if (!res && currentUser?.password && currentUser.password !== currentPassword) {
-        setPasswordStatus({ type: "error", msg: "Current password is incorrect." });
+      if (
+        !res &&
+        currentUser?.password &&
+        currentUser.password !== currentPassword
+      ) {
+        setPasswordStatus({
+          type: "error",
+          msg: "Current password is incorrect.",
+        });
         return;
       }
-    } catch (err) {
+    } catch {
       if (currentUser?.password && currentUser.password !== currentPassword) {
-        setPasswordStatus({ type: "error", msg: "Current password is incorrect." });
+        setPasswordStatus({
+          type: "error",
+          msg: "Current password is incorrect.",
+        });
         return;
       }
     }
@@ -2366,7 +1777,7 @@ function SettingsPage({
 
     setPasswordStatus({
       type: "success",
-      msg: "Password updated successfully! Security confirmation email sent.",
+      msg: "Password updated successfully!",
     });
     setCurrentPassword("");
     setNewPassword("");
@@ -2377,318 +1788,616 @@ function SettingsPage({
     }, 2200);
   }
 
+  function handlePaymentMethodChange(e) {
+  const val = e.target.value;
+  setDefaultPaymentMethod(val);
+  saveLocal(`pace_usr_${currentUser?.id}_default_payment`, val);
+}
+
+  // Account Deletion Handler
+  async function handleDeleteAccount(e) {
+    e.preventDefault();
+    setDeleteError("");
+    setDeleteLoading(true);
+
+    const isGoogle = currentUser?.authProvider === "google";
+    const payload = {};
+
+    if (isGoogle) {
+      if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
+        setDeleteError(
+          'Please type "DELETE" in all capital letters to confirm.',
+        );
+        setDeleteLoading(false);
+        return;
+      }
+      payload.confirmText = "DELETE";
+    } else {
+      if (!deleteConfirmPassword) {
+        setDeleteError("Please enter your password to confirm.");
+        setDeleteLoading(false);
+        return;
+      }
+      payload.password = deleteConfirmPassword;
+    }
+
+    try {
+      await apiDeleteAccount(payload);
+      // Clean up session and storage
+      clearAuthToken();
+      localStorage.removeItem("pace_active_user");
+      const userPrefix = `pace_usr_${currentUser?.id}_`;
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(userPrefix)) keysToRemove.push(k);
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+
+      setShowDeleteModal(false);
+      onLogout();
+    } catch (err) {
+      setDeleteError(
+        err.message || "Failed to delete account. Please try again.",
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   return (
     <div className="page-content page">
       <div className="page-title-row">
         <div className="page-title">
           <span>PACE</span>
           <h2>Settings</h2>
-          <p>Manage your account, security & notifications.</p>
+          <p>Account, preferences & privacy control.</p>
         </div>
         <button className="back-btn" type="button" onClick={onBack}>
           ← Back
         </button>
       </div>
 
-      {/* Account & Security Overview Card */}
-      <div className="settings-card">
-        <div className="settings-row">
-          <div>
-            <strong>Account Identity</strong>
-            <small>{currentUser?.email || "Guest User"}</small>
-          </div>
-          <span className="status-dot">{currentUser?.name || "User"}</span>
+      {/* SECTION 1: ACCOUNT & SECURITY */}
+      <section className="settings-section">
+        <div className="section-title-sm">
+          <span>1. ACCOUNT & SECURITY</span>
+          <small>Manage identity, password & permanent deletion</small>
         </div>
 
-        <div className="settings-row">
-          <div>
-            <strong>Sign-In Method</strong>
-            <small>
-              {currentUser?.authProvider === "google"
-                ? "Google OAuth 2.0 (Google Identity Services)"
-                : "Standard Email & Password (Bcrypt Hash 12)"}
-            </small>
-          </div>
-          <span className={`security-badge ${currentUser?.authProvider === "google" ? "google" : ""}`}>
-            {currentUser?.authProvider === "google" ? "Google Account" : "Password Auth"}
-          </span>
-        </div>
-
-        <div className="settings-row">
-          <div>
-            <strong>Email Verification Status</strong>
-            <small>Two-factor OTP recovery active</small>
-          </div>
-          <span className="security-badge">
-            ✓ Verified
-          </span>
-        </div>
-
-        <div className="settings-row">
-          <div>
-            <strong>Session Security</strong>
-            <small>Bank-Grade HMAC-SHA256 Token Protection</small>
-          </div>
-          <span className="security-badge jwt">
-            🔒 JWT Protected
-          </span>
-        </div>
-      </div>
-
-      {/* Email Notifications & Alerts Card */}
-      <div className="settings-card" style={{ marginTop: "14px" }}>
-        <div className="settings-row" style={{ marginBottom: 12 }}>
-          <strong style={{ fontSize: 15, color: "#f8fafc" }}>✉️ Email Notifications & Alerts</strong>
-          <p style={{ margin: "3px 0 0 0", fontSize: 12, color: "#94a3b8" }}>
-            Receive real-time transactional, security, and budgeting emails directly to {currentUser?.email}
-          </p>
-        </div>
-
-        {emailActionStatus.msg && (
-          <div
-            className={`password-status-banner ${emailActionStatus.type}`}
-            style={{ marginBottom: 14 }}
-          >
-            {emailActionStatus.msg}
-          </div>
-        )}
-
-        <div className="notification-toggle-row">
-          <div className="notification-toggle-info">
-            <strong>Budget Guard Alerts</strong>
-            <small>Email notification when spending reaches 80% or 100% of budget</small>
-          </div>
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              checked={emailNotifs.budgetAlerts}
-              onChange={() => handleToggleNotif("budgetAlerts")}
-            />
-            <span className="toggle-slider"></span>
-          </label>
-        </div>
-
-        <div className="notification-toggle-row">
-          <div className="notification-toggle-info">
-            <strong>Sign-In Security Alerts</strong>
-            <small>Email alert with IP, time & device when your account logs in</small>
-          </div>
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              checked={emailNotifs.loginAlerts}
-              onChange={() => handleToggleNotif("loginAlerts")}
-            />
-            <span className="toggle-slider"></span>
-          </label>
-        </div>
-
-        <div className="notification-toggle-row">
-          <div className="notification-toggle-info">
-            <strong>Monthly Financial Statements</strong>
-            <small>Periodic spending snapshot, savings rate, and category breakdown</small>
-          </div>
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              checked={emailNotifs.monthlyReport}
-              onChange={() => handleToggleNotif("monthlyReport")}
-            />
-            <span className="toggle-slider"></span>
-          </label>
-        </div>
-
-        {/* Live Email Action Triggers */}
-        <div className="action-btn-group">
-          <button
-            type="button"
-            className="secondary-action-btn"
-            onClick={handleSendTestEmail}
-            disabled={emailLoading}
-          >
-            <span>✉️</span>
-            <span>{emailLoading ? "Sending..." : "Send Test Email"}</span>
-          </button>
-
-          <button
-            type="button"
-            className="secondary-action-btn"
-            onClick={handleSendReportEmail}
-            disabled={emailLoading}
-          >
-            <span>📊</span>
-            <span>{emailLoading ? "Generating..." : "Email My Summary"}</span>
-          </button>
-
-          <button
-            type="button"
-            className="secondary-action-btn"
-            onClick={handleTriggerBudgetAlert}
-            disabled={emailLoading}
-            style={{ gridColumn: "1 / -1" }}
-          >
-            <span>🚨</span>
-            <span>{emailLoading ? "Dispatching..." : "Simulate Budget Guard Alert Email"}</span>
-          </button>
-        </div>
-      </div>
-
-      {currentUser?.id && currentUser.id !== "usr_demo" && currentUser.id !== "guest" && (
-        <div className="settings-card security-card" style={{ marginTop: "14px" }}>
+        <div className="settings-card">
           <div className="settings-row">
             <div>
-              <strong>Change Password</strong>
-              <small>Update your account access credentials</small>
+              <strong>Account Identity</strong>
+              <small>{currentUser?.email || "User Account"}</small>
             </div>
-            {!showPasswordForm ? (
-              <button
-                className="text-btn"
-                type="button"
-                onClick={() => {
-                  setShowPasswordForm(true);
-                  setPasswordStatus({ type: "", msg: "" });
-                }}
-              >
-                Change Password
-              </button>
-            ) : (
-              <button
-                className="text-btn"
-                type="button"
-                onClick={() => {
-                  setShowPasswordForm(false);
-                  setPasswordStatus({ type: "", msg: "" });
-                }}
-              >
-                Close
-              </button>
-            )}
+            <span className="status-dot">{currentUser?.name || "User"}</span>
           </div>
 
-          {showPasswordForm && (
-            <form className="change-password-form" onSubmit={handleChangePasswordSubmit}>
-              {passwordStatus.msg && (
-                <div className={`password-status-banner ${passwordStatus.type}`}>
-                  {passwordStatus.msg}
+          <div className="settings-row">
+            <div>
+              <strong>Sign-In Method</strong>
+              <small>
+                {currentUser?.authProvider === "google"
+                  ? "Google OAuth 2.0 (Google Identity Services)"
+                  : "Standard Email & Password (Bcrypt Encrypted)"}
+              </small>
+            </div>
+            <span
+              className={`security-badge ${currentUser?.authProvider === "google" ? "google" : ""}`}
+            >
+              {currentUser?.authProvider === "google"
+                ? "Google Account"
+                : "Password Auth"}
+            </span>
+          </div>
+
+          <div className="settings-row">
+            <div>
+              <strong>Session Security</strong>
+              <small>Bank-Grade Token Encryption</small>
+            </div>
+            <span className="security-badge jwt">🔒 Active</span>
+          </div>
+
+          {currentUser?.authProvider !== "google" && (
+            <div
+              className="settings-row"
+              style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <div>
+                  <strong>Change Password</strong>
+                  <small>Update your account access credentials</small>
                 </div>
-              )}
-
-              <label>
-                Current Password
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  autoFocus
-                />
-              </label>
-
-              <label>
-                New Password
-                <input
-                  type="password"
-                  placeholder="Min 6 characters"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                />
-              </label>
-
-              <label>
-                Confirm New Password
-                <input
-                  type="password"
-                  placeholder="Re-enter new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-              </label>
-
-              <div className="change-password-actions">
                 <button
+                  className="text-btn"
                   type="button"
-                  className="cancel-btn"
-                  onClick={() => {
-                    setShowPasswordForm(false);
-                    setPasswordStatus({ type: "", msg: "" });
-                  }}
+                  onClick={() => setShowPasswordForm(!showPasswordForm)}
                 >
-                  Cancel
-                </button>
-                <button type="submit" className="save-btn">
-                  Save New Password
+                  {showPasswordForm ? "Close Form" : "Change Password"}
                 </button>
               </div>
-            </form>
+
+              {showPasswordForm && (
+                <form
+                  className="change-password-form"
+                  onSubmit={handleChangePasswordSubmit}
+                  style={{ marginTop: 10 }}
+                >
+                  {passwordStatus.msg && (
+                    <div
+                      className={`password-status-banner ${passwordStatus.type}`}
+                    >
+                      {passwordStatus.msg}
+                    </div>
+                  )}
+
+                  <label>
+                    Current Password
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      autoFocus
+                    />
+                  </label>
+
+                  <label>
+                    New Password
+                    <input
+                      type="password"
+                      placeholder="Min 6 characters"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                  </label>
+
+                  <label>
+                    Confirm New Password
+                    <input
+                      type="password"
+                      placeholder="Re-enter new password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </label>
+
+                  <div className="change-password-actions">
+                    <button
+                      type="button"
+                      className="cancel-btn"
+                      onClick={() => setShowPasswordForm(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" className="save-btn">
+                      Save New Password
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           )}
-        </div>
-      )}
 
-      {/* Cloud DB & Backend Status Card */}
-      <div className="settings-card" style={{ marginTop: "14px" }}>
-        <div className="settings-row">
-          <div>
-            <strong>Database & Cloud Sync</strong>
-            <small>
-              {serverStatus?.online && serverStatus?.database?.connected
-                ? "Connected to MongoDB Database"
-                : serverStatus?.online
-                ? "Backend Online (Connecting to MongoDB...)"
-                : "Offline Local DB (Run 'npm run server' for MongoDB)"}
-            </small>
+          {/* Account Deletion Trigger */}
+          <div
+            className="settings-row"
+            style={{
+              borderTop: "1px solid rgba(239, 68, 68, 0.2)",
+              paddingTop: 14,
+              marginTop: 10,
+            }}
+          >
+            <div>
+              <strong style={{ color: "#ef4444" }}>Delete Account</strong>
+              <small>
+                Permanently erase user account and all 6 financial collections
+              </small>
+            </div>
+            <button
+              type="button"
+              className="danger-btn-sm"
+              style={{
+                background: "rgba(239, 68, 68, 0.15)",
+                color: "#ef4444",
+                border: "1px solid rgba(239, 68, 68, 0.3)",
+                padding: "6px 14px",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+              onClick={() => {
+                setDeleteError("");
+                setDeleteConfirmPassword("");
+                setDeleteConfirmText("");
+                setShowDeleteModal(true);
+              }}
+            >
+              Delete Account
+            </button>
           </div>
-          <span className={serverStatus?.online && serverStatus?.database?.connected ? "status-dot active" : "status-dot"}>
-            {serverStatus?.online && serverStatus?.database?.connected ? "🟢 MongoDB Active" : "🟡 Local PWA"}
-          </span>
+        </div>
+      </section>
+
+      {/* SECTION 2: PREFERENCES */}
+      <section className="settings-section" style={{ marginTop: 20 }}>
+        <div className="section-title-sm">
+          <span>2. PREFERENCES</span>
+          <small>Currency & transaction defaults</small>
         </div>
 
-        <div className="settings-row">
-          <div>
-            <strong>Backend API Server</strong>
-            <small style={{ wordBreak: "break-all" }}>
-              {import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"}
-            </small>
+        <div className="settings-card">
+          <div className="settings-row">
+            <div>
+              <strong>Primary Currency</strong>
+              <small>Default currency format for all calculations</small>
+            </div>
+            <span className="security-badge">INR (₹)</span>
           </div>
-          <button className="text-btn" type="button" onClick={handleCheckServer}>
-            Test Connection
-          </button>
-        </div>
-      </div>
 
-      <div className="danger-card">
-        <div>
-          <strong>Reset account data</strong>
-          <small>
-            Clears all transactions and goals for this account.
-          </small>
-        </div>
-
-        <button type="button" onClick={onResetAccountData}>Clear</button>
-      </div>
-
-      <div className="settings-card" style={{ marginTop: "14px" }}>
-        <div className="settings-row">
-          <div>
-            <strong>Demo sample data</strong>
-            <small>Populate sample transactions and goals.</small>
+          <div className="settings-row">
+            <div>
+              <strong>Default Payment Method</strong>
+              <small>Pre-selected when adding a new transaction</small>
+            </div>
+            <select
+              value={defaultPaymentMethod}
+              onChange={handlePaymentMethodChange}
+            >
+              {PAYMENT_METHODS.map((pm) => (
+                <option key={pm} value={pm}>
+                  {pm}
+                </option>
+              ))}
+            </select>
           </div>
-          <button className="text-btn" type="button" onClick={onLoadDemoData}>
-            Load Demo
-          </button>
         </div>
-      </div>
+      </section>
 
-      <button className="logout-btn" type="button" onClick={onLogout}>
+      {/* SECTION 3: EMAIL NOTIFICATIONS & ALERTS */}
+      <section className="settings-section" style={{ marginTop: 20 }}>
+        <div className="section-title-sm">
+          <span>3. NOTIFICATIONS & EMAIL ALERTS</span>
+          <small>Configure automated spending alerts & report delivery</small>
+        </div>
+
+        <div className="settings-card">
+          {emailActionStatus.msg && (
+            <div
+              className={`password-status-banner ${emailActionStatus.type}`}
+              style={{ marginBottom: 14 }}
+            >
+              {emailActionStatus.msg}
+            </div>
+          )}
+
+          <div className="notification-toggle-row">
+            <div className="notification-toggle-info">
+              <strong>Budget Guard Alerts</strong>
+              <small>
+                Email notification when spending reaches 80% or 100% of budget
+              </small>
+            </div>
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={emailNotifs.budgetAlerts}
+                onChange={() => handleToggleNotif("budgetAlerts")}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div className="notification-toggle-row">
+            <div className="notification-toggle-info">
+              <strong>Sign-In Security Alerts</strong>
+              <small>
+                Email alert with IP, time & device when your account logs in
+              </small>
+            </div>
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={emailNotifs.loginAlerts}
+                onChange={() => handleToggleNotif("loginAlerts")}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div className="notification-toggle-row">
+            <div className="notification-toggle-info">
+              <strong>Monthly Financial Statements</strong>
+              <small>
+                Periodic spending snapshot, savings rate, and category breakdown
+              </small>
+            </div>
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={emailNotifs.monthlyReport}
+                onChange={() => handleToggleNotif("monthlyReport")}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+          </div>
+
+          {/* Action buttons */}
+          <div className="action-btn-group" style={{ marginTop: 14 }}>
+            <button
+              type="button"
+              className="secondary-action-btn"
+              onClick={handleSendReportEmail}
+              disabled={emailLoading}
+            >
+              <span>📊</span>
+              <span>{emailLoading ? "Generating..." : "Email My Summary"}</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 4: DATA & PRIVACY */}
+      <section className="settings-section" style={{ marginTop: 20 }}>
+        <div className="section-title-sm">
+          <span>4. DATA & PRIVACY</span>
+          <small>Import, export & data ownership controls</small>
+        </div>
+
+        <div className="settings-card">
+          <div className="settings-row">
+            <div>
+              <strong>Export Transactions (CSV)</strong>
+              <small>Download spreadsheet formatted transaction records</small>
+            </div>
+            <button
+              className="text-btn"
+              type="button"
+              onClick={() => exportTransactionsToCSV(transactions)}
+            >
+              Export CSV
+            </button>
+          </div>
+
+          <div className="settings-row">
+            <div>
+              <strong>Full Financial Backup (JSON)</strong>
+              <small>
+                Export complete account data including goals, events & loans
+              </small>
+            </div>
+            <button
+              className="text-btn"
+              type="button"
+              onClick={() =>
+                exportFinancialDataJSON({
+                  currentUser,
+                  transactions,
+                  goals,
+                  events,
+                  loans,
+                })
+              }
+            >
+              Export JSON
+            </button>
+          </div>
+
+          <div
+            className="settings-row"
+            style={{
+              borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+              paddingTop: 12,
+            }}
+          >
+            <div>
+              <strong>Clear Local Data</strong>
+              <small>
+                Clears cached PACE data from this device only. Cloud account
+                data is not deleted.
+              </small>
+            </div>
+            <button
+              className="text-btn"
+              type="button"
+              onClick={onResetAccountData}
+            >
+              Clear Local Data
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 5: ABOUT & PRIVACY */}
+      <section className="settings-section" style={{ marginTop: 20 }}>
+        <div className="section-title-sm">
+          <span>5. ABOUT & PRIVACY</span>
+          <small>PACE information & privacy controls</small>
+        </div>
+
+        <div className="settings-card">
+          <div className="settings-row">
+            <div>
+              <strong>Data Privacy</strong>
+              <small>Your financial records are isolated to your account.</small>
+            </div>
+            <span className="security-badge">🔒 Private</span>
+          </div>
+
+          <div className="settings-row">
+            <div>
+              <strong>PACE Version</strong>
+              <small>Personal finance companion</small>
+            </div>
+            <span className="security-badge">v1.0</span>
+          </div>
+        </div>
+      </section>
+
+      <button
+        className="logout-btn"
+        type="button"
+        onClick={onLogout}
+        style={{ marginTop: 24 }}
+      >
         Log Out ({currentUser?.name || "Account"})
       </button>
 
-      <div className="app-about-footer">
-        <PaceLogo size={28} variant="tile" />
+      <div className="app-about-footer" style={{ marginTop: 20 }}>
+        <PaceLogo size={32} variant="tile" />
         <div>
-          <strong>PACE v1.0</strong>
+          <strong>PACE v1.0 Production</strong>
           <small>Spend with intention. Save with purpose.</small>
         </div>
       </div>
+
+      {/* ACCOUNT DELETION CONFIRMATION MODAL */}
+      {showDeleteModal && (
+        <div
+          className="modal-overlay"
+          onMouseDown={() => setShowDeleteModal(false)}
+        >
+          <div
+            className="modal"
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{ borderTop: "4px solid #ef4444" }}
+          >
+            <div className="modal-handle" />
+            <div className="modal-header">
+              <div>
+                <span style={{ color: "#ef4444", fontWeight: 700 }}>
+                  PERMANENT DELETION
+                </span>
+                <h2 style={{ color: "#f8fafc" }}>Delete PACE Account</h2>
+              </div>
+              <button
+                className="close-btn"
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ padding: "0 0 16px 0" }}>
+              <div
+                style={{
+                  background: "rgba(239, 68, 68, 0.12)",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  borderRadius: 8,
+                  padding: 12,
+                  marginBottom: 16,
+                }}
+              >
+                <strong
+                  style={{
+                    color: "#f87171",
+                    display: "block",
+                    marginBottom: 4,
+                  }}
+                >
+                  ⚠️ This action cannot be undone.
+                </strong>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 13,
+                    color: "#cbd5e1",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  All your financial data will be permanently wiped across all 6
+                  collections: Transactions, Events, Loans, Budgets, Savings
+                  Goals, and Account Profile.
+                </p>
+              </div>
+
+              {deleteError && (
+                <div
+                  className="password-status-banner error"
+                  style={{ marginBottom: 14 }}
+                >
+                  {deleteError}
+                </div>
+              )}
+
+              <form onSubmit={handleDeleteAccount}>
+                {currentUser?.authProvider === "google" ? (
+                  <label>
+                    Type <strong style={{ color: "#ef4444" }}>DELETE</strong> to
+                    confirm:
+                    <input
+                      type="text"
+                      placeholder="DELETE"
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                      autoFocus
+                      required
+                      style={{
+                        marginTop: 6,
+                        border: "1px solid rgba(239, 68, 68, 0.4)",
+                      }}
+                    />
+                  </label>
+                ) : (
+                  <label>
+                    Enter your current account password:
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      value={deleteConfirmPassword}
+                      onChange={(e) => setDeleteConfirmPassword(e.target.value)}
+                      autoFocus
+                      required
+                      style={{ marginTop: 6 }}
+                    />
+                  </label>
+                )}
+
+                <div
+                  style={{
+                    marginTop: 20,
+                    display: "flex",
+                    gap: 10,
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="cancel-btn"
+                    onClick={() => setShowDeleteModal(false)}
+                    disabled={deleteLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="submit-btn"
+                    style={{
+                      background: "#ef4444",
+                      color: "#ffffff",
+                    }}
+                    disabled={deleteLoading}
+                  >
+                    {deleteLoading
+                      ? "Deleting Account..."
+                      : "Permanently Delete Account"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2697,9 +2406,34 @@ function SettingsPage({
    MAIN APP CONTAINER
    ========================================================================== */
 
+function normalizeTransaction(tx) {
+  return { ...tx, id: tx.id || tx._id };
+}
+
+function normalizeEvent(event) {
+  return { ...event, id: event.id || event._id };
+}
+
+function normalizeLoan(loan) {
+  return { ...loan, id: loan.id || loan._id };
+}
+
+function normalizeGoal(goal) {
+  return {
+    ...goal,
+    id: goal.id || goal._id,
+    name: goal.name || goal.title || "Goal",
+    icon: goal.icon || "🎯",
+    category: goal.category || "Personal",
+    target: Number(goal.target ?? goal.targetAmount ?? 0),
+    saved: Number(goal.saved ?? goal.currentAmount ?? 0),
+    date: goal.date || goal.deadline || "",
+  };
+}
+
 function App() {
   const [currentUser, setCurrentUser] = useState(() =>
-    loadLocal("pace_active_user", null)
+    loadLocal("pace_active_user", null),
   );
 
   // When logged out, render the AuthScreen
@@ -2710,77 +2444,48 @@ function App() {
           saveLocal("pace_active_user", user);
           setCurrentUser(user);
         }}
-        onGuestLogin={() => {
-          const demoUser = {
-            id: "demo",
-            name: "Demo User",
-            email: "demo@pace.app",
-            isDemo: true,
-          };
-          saveLocal("pace_active_user", demoUser);
-
-          if (!localStorage.getItem("pace_usr_demo_transactions")) {
-            saveLocal("pace_usr_demo_transactions", getDemoTransactions());
-            saveLocal("pace_usr_demo_goals", getDemoGoals());
-            saveLocal("pace_usr_demo_events", getDemoEvents());
-            saveLocal("pace_usr_demo_loans", getDemoLoans());
-            saveLocal("pace_usr_demo_monthly-budget", defaultBudget);
-            saveLocal("pace_usr_demo_category-budgets", {});
-            saveLocal("pace_usr_demo_guard-threshold", defaultGuardThreshold);
-          }
-          setCurrentUser(demoUser);
-        }}
       />
     );
   }
 
-  return <AuthenticatedApp currentUser={currentUser} setCurrentUser={setCurrentUser} />;
+  return (
+    <AuthenticatedApp
+      currentUser={currentUser}
+      setCurrentUser={setCurrentUser}
+    />
+  );
 }
 
 function AuthenticatedApp({ currentUser, setCurrentUser }) {
   const userKey = `pace_usr_${currentUser.id}`;
 
   const [transactions, setTransactions] = useState(() =>
-    loadLocal(
-      `${userKey}_transactions`,
-      currentUser.isDemo ? getDemoTransactions() : []
-    )
+    loadLocal(`${userKey}_transactions`, []),
   );
 
   const [goals, setGoals] = useState(() =>
-    loadLocal(
-      `${userKey}_goals`,
-      currentUser.isDemo ? getDemoGoals() : []
-    ).map((goal) => ({
+    loadLocal(`${userKey}_goals`, []).map((goal) => ({
       ...goal,
       category: goal.category || "Personal",
-    }))
+    })),
   );
 
   const [events, setEvents] = useState(() =>
-    loadLocal(
-      `${userKey}_events`,
-      currentUser.isDemo ? getDemoEvents() : []
-    )
+    loadLocal(`${userKey}_events`, []),
   );
 
-  const [loans, setLoans] = useState(() =>
-    loadLocal(
-      `${userKey}_loans`,
-      currentUser.isDemo ? getDemoLoans() : []
-    )
-  );
+  const [loans, setLoans] = useState(() => loadLocal(`${userKey}_loans`, []));
 
   const [monthlyBudget, setMonthlyBudget] = useState(() =>
-    Number(loadLocal(`${userKey}_monthly-budget`, defaultBudget))
+    Number(loadLocal(`${userKey}_monthly-budget`, defaultBudget)),
   );
 
   const [categoryBudgets, setCategoryBudgets] = useState(() =>
-    loadLocal(`${userKey}_category-budgets`, {})
+    loadLocal(`${userKey}_category-budgets`, {}),
   );
 
   const [guardThreshold, setGuardThreshold] = useState(() =>
-    Number(loadLocal(`${userKey}_guard-threshold`, defaultGuardThreshold))
+    Number(loadLocal(`${userKey}_guard-threshold`, defaultGuardThreshold)),
   );
 
   // Month-aware financial state
@@ -2794,7 +2499,6 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState(null);
 
-  const [showOcrModal, setShowOcrModal] = useState(false);
   const [showStatementModal, setShowStatementModal] = useState(false);
 
   function navigateTo(page) {
@@ -2821,38 +2525,70 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
   const [activityType, setActivityType] = useState("all");
   const [activityCategory, setActivityCategory] = useState("all");
 
-  useEffect(() => saveLocal(`${userKey}_transactions`, transactions), [userKey, transactions]);
+  useEffect(
+    () => saveLocal(`${userKey}_transactions`, transactions),
+    [userKey, transactions],
+  );
   useEffect(() => saveLocal(`${userKey}_goals`, goals), [userKey, goals]);
   useEffect(() => saveLocal(`${userKey}_events`, events), [userKey, events]);
   useEffect(() => saveLocal(`${userKey}_loans`, loans), [userKey, loans]);
   useEffect(
     () => saveLocal(`${userKey}_monthly-budget`, monthlyBudget),
-    [userKey, monthlyBudget]
+    [userKey, monthlyBudget],
   );
   useEffect(
     () => saveLocal(`${userKey}_category-budgets`, categoryBudgets),
-    [userKey, categoryBudgets]
+    [userKey, categoryBudgets],
   );
   useEffect(
     () => saveLocal(`${userKey}_guard-threshold`, guardThreshold),
-    [userKey, guardThreshold]
+    [userKey, guardThreshold],
   );
 
   // Sync with backend if logged in
   useEffect(() => {
-    if (!currentUser.isDemo && getAuthToken()) {
-      apiGetEvents().then((evs) => {
-        if (Array.isArray(evs) && evs.length > 0) setEvents(evs);
-      }).catch(() => {});
+    if (!getAuthToken()) return;
 
-      apiGetLoans().then((lns) => {
-        if (Array.isArray(lns) && lns.length > 0) setLoans(lns);
-      }).catch(() => {});
+    apiGetEvents()
+      .then((data) => {
+        if (Array.isArray(data?.events)) setEvents(data.events.map(normalizeEvent));
+      })
+      .catch(() => {});
 
-      apiGetTransactions().then((txs) => {
-        if (Array.isArray(txs) && txs.length > 0) setTransactions(txs);
-      }).catch(() => {});
-    }
+    apiGetLoans()
+      .then((data) => {
+        if (Array.isArray(data?.loans)) setLoans(data.loans.map(normalizeLoan));
+      })
+      .catch(() => {});
+
+    apiGetTransactions()
+      .then((data) => {
+        if (Array.isArray(data?.transactions)) {
+          setTransactions(data.transactions.map(normalizeTransaction));
+        }
+      })
+      .catch(() => {});
+
+    apiGetBudget()
+      .then((data) => {
+        const budget = data?.budget;
+        if (budget) {
+          setMonthlyBudget(Number(budget.monthlyBudget || 0));
+          setCategoryBudgets(budget.categoryBudgets || {});
+          setGuardThreshold(Number(budget.guardThreshold || 80));
+        } else {
+          setMonthlyBudget(0);
+          setCategoryBudgets({});
+          setGuardThreshold(80);
+        }
+      })
+      .catch(() => {});
+
+    apiGetGoals()
+      .then((data) => {
+        if (Array.isArray(data?.goals)) setGoals(data.goals.map(normalizeGoal));
+      })
+      .catch(() => {});
   }, [currentUser.id]);
 
   function handleLogout() {
@@ -2864,14 +2600,11 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
   function handleUpdateUser(updatedUser) {
     setCurrentUser(updatedUser);
     saveLocal("pace_active_user", updatedUser);
-    const users = loadLocal("pace_users", []);
-    const updatedUsers = users.map((u) => (u.id === updatedUser.id ? updatedUser : u));
-    saveLocal("pace_users", updatedUsers);
   }
 
   function handleResetAccountData() {
     const confirmed = window.confirm(
-      "Reset your account data? All transactions, events, loans and goals will be cleared."
+      "Clear local PACE data on this device? This does not delete your server account or cloud data.",
     );
     if (!confirmed) return;
 
@@ -2887,80 +2620,111 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     saveLocal(`${userKey}_category-budgets`, {});
   }
 
-  function handleLoadDemoData() {
-    const demoTx = getDemoTransactions();
-    const demoG = getDemoGoals();
-    const demoEv = getDemoEvents();
-    const demoLn = getDemoLoans();
-
-    setTransactions(demoTx);
-    setGoals(demoG);
-    setEvents(demoEv);
-    setLoans(demoLn);
-    setMonthlyBudget(defaultBudget);
-    setCategoryBudgets({});
-
-    saveLocal(`${userKey}_transactions`, demoTx);
-    saveLocal(`${userKey}_goals`, demoG);
-    saveLocal(`${userKey}_events`, demoEv);
-    saveLocal(`${userKey}_loans`, demoLn);
-    saveLocal(`${userKey}_monthly-budget`, defaultBudget);
-    saveLocal(`${userKey}_category-budgets`, {});
-  }
-
   // Events CRUD
-  function handleAddEvent(newEvent) {
+  async function handleAddEvent(newEvent) {
+    if (getAuthToken()) {
+      try {
+        const response = await apiCreateEvent(newEvent);
+        const saved = normalizeEvent(response?.event || newEvent);
+        setEvents((prev) => [saved, ...prev]);
+        return;
+      } catch (error) {
+        window.alert(error.message || "Failed to create event.");
+        return;
+      }
+    }
     setEvents((prev) => [newEvent, ...prev]);
-    if (!currentUser.isDemo) {
-      apiCreateEvent(newEvent).catch(() => {});
-    }
   }
 
-  function handleUpdateEvent(updatedEvent) {
-    setEvents((prev) => prev.map((e) => (e.id === updatedEvent.id ? updatedEvent : e)));
-    if (!currentUser.isDemo) {
-      apiUpdateEvent(updatedEvent.id, updatedEvent).catch(() => {});
+  async function handleUpdateEvent(updatedEvent) {
+    if (getAuthToken()) {
+      try {
+        const response = await apiUpdateEvent(updatedEvent.id, updatedEvent);
+        const saved = normalizeEvent(response?.event || updatedEvent);
+        setEvents((prev) =>
+          prev.map((event) => (event.id === updatedEvent.id ? saved : event)),
+        );
+        return;
+      } catch (error) {
+        window.alert(error.message || "Failed to update event.");
+        return;
+      }
     }
+    setEvents((prev) =>
+      prev.map((event) => (event.id === updatedEvent.id ? updatedEvent : event)),
+    );
   }
 
-  function handleDeleteEvent(id) {
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-    if (!currentUser.isDemo) {
-      apiDeleteEvent(id).catch(() => {});
+  async function handleDeleteEvent(id) {
+    if (getAuthToken()) {
+      try {
+        await apiDeleteEvent(id);
+      } catch (error) {
+        window.alert(error.message || "Failed to delete event.");
+        return;
+      }
     }
+    setEvents((prev) => prev.filter((event) => event.id !== id));
   }
 
   // Loans CRUD
-  function handleAddLoan(newLoan) {
+  async function handleAddLoan(newLoan) {
+    if (getAuthToken()) {
+      try {
+        const response = await apiCreateLoan(newLoan);
+        const saved = normalizeLoan(response?.loan || newLoan);
+        setLoans((prev) => [saved, ...prev]);
+        return;
+      } catch (error) {
+        window.alert(error.message || "Failed to create loan.");
+        return;
+      }
+    }
     setLoans((prev) => [newLoan, ...prev]);
-    if (!currentUser.isDemo) {
-      apiCreateLoan(newLoan).catch(() => {});
-    }
   }
 
-  function handleUpdateLoan(updatedLoan) {
-    setLoans((prev) => prev.map((l) => (l.id === updatedLoan.id ? updatedLoan : l)));
-    if (!currentUser.isDemo) {
-      apiUpdateLoan(updatedLoan.id, updatedLoan).catch(() => {});
+  async function handleUpdateLoan(updatedLoan) {
+    if (getAuthToken()) {
+      try {
+        const response = await apiUpdateLoan(updatedLoan.id, updatedLoan);
+        const saved = normalizeLoan(response?.loan || updatedLoan);
+        setLoans((prev) =>
+          prev.map((loan) => (loan.id === updatedLoan.id ? saved : loan)),
+        );
+        return;
+      } catch (error) {
+        window.alert(error.message || "Failed to update loan.");
+        return;
+      }
     }
+    setLoans((prev) =>
+      prev.map((loan) => (loan.id === updatedLoan.id ? updatedLoan : loan)),
+    );
   }
 
-  function handleDeleteLoan(id) {
-    setLoans((prev) => prev.filter((l) => l.id !== id));
-    if (!currentUser.isDemo) {
-      apiDeleteLoan(id).catch(() => {});
+  async function handleDeleteLoan(id) {
+    if (getAuthToken()) {
+      try {
+        await apiDeleteLoan(id);
+      } catch (error) {
+        window.alert(error.message || "Failed to delete loan.");
+        return;
+      }
     }
+    setLoans((prev) => prev.filter((loan) => loan.id !== id));
   }
 
   // Central monthly financial engine
   const currentMonthTransactions = useMemo(
-    () => transactions.filter((item) => isDateInMonth(item.date, selectedMonthKey)),
-    [transactions, selectedMonthKey]
+    () =>
+      transactions.filter((item) => isDateInMonth(item.date, selectedMonthKey)),
+    [transactions, selectedMonthKey],
   );
 
   const monthlyFinances = useMemo(
-    () => calculateMonthlyFinances(transactions, selectedMonthKey, monthlyBudget),
-    [transactions, selectedMonthKey, monthlyBudget]
+    () =>
+      calculateMonthlyFinances(transactions, selectedMonthKey, monthlyBudget),
+    [transactions, selectedMonthKey, monthlyBudget],
   );
 
   const categoryBudgetAlerts = useMemo(() => {
@@ -2972,7 +2736,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
       const spent = currentMonthTransactions
         .filter(
           (transaction) =>
-            transaction.type === "expense" && transaction.category === category
+            transaction.type === "expense" && transaction.category === category,
         )
         .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
 
@@ -2989,11 +2753,11 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
   }, [categoryBudgets, currentMonthTransactions]);
 
   const overLimitCategories = categoryBudgetAlerts.filter(
-    (item) => item.overLimit
+    (item) => item.overLimit,
   );
 
   const nearLimitCategories = categoryBudgetAlerts.filter(
-    (item) => item.percentage >= 80 && !item.overLimit
+    (item) => item.percentage >= 80 && !item.overLimit,
   );
 
   const availableCategories = useMemo(() => {
@@ -3054,47 +2818,34 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     setInitialTxData(null);
   }
 
-  function handleSaveTransaction(newTx) {
+  async function handleSaveTransaction(newTx) {
+    const editingId = initialTxData?.id;
+
+    if (editingId && getAuthToken()) {
+      try {
+        const response = await apiUpdateTransaction(editingId, newTx);
+        const saved = normalizeTransaction(response?.transaction || newTx);
+        setTransactions((prev) =>
+          prev.map((tx) => (tx.id === editingId ? saved : tx)),
+        );
+      } catch (error) {
+        window.alert(error.message || "Failed to update transaction.");
+      }
+      return;
+    }
+
+    if (getAuthToken()) {
+      try {
+        const response = await apiCreateTransaction(newTx);
+        const saved = normalizeTransaction(response?.transaction || newTx);
+        setTransactions((prev) => [saved, ...prev]);
+      } catch (error) {
+        window.alert(error.message || "Failed to save transaction.");
+      }
+      return;
+    }
+
     setTransactions((prev) => [newTx, ...prev]);
-
-    // If debt repayment linked to a loan with principal amount, update loan balance
-    if (newTx.type === "debt_repayment" && newTx.loanId && newTx.principalAmount) {
-      setLoans((prevLoans) =>
-        prevLoans.map((l) => {
-          if (l.id === newTx.loanId) {
-            const newBal = Math.max(0, Number(l.currentOutstanding || 0) - Number(newTx.principalAmount));
-            const newRem = Math.max(0, Number(l.remainingTenureMonths || 1) - 1);
-            return {
-              ...l,
-              currentOutstanding: newBal,
-              remainingTenureMonths: newRem,
-            };
-          }
-          return l;
-        })
-      );
-    }
-
-    if (!currentUser.isDemo) {
-      apiCreateTransaction(newTx).catch(() => {});
-    }
-  }
-
-  function handleApplyOcrTransaction(ocrTx) {
-    const newTx = {
-      id: Date.now(),
-      title: ocrTx.title || "Bill Expense",
-      amount: Number(ocrTx.amount) || 0,
-      type: ocrTx.type || "expense",
-      category: ocrTx.category || "Shopping",
-      majorHead: getMajorHead(ocrTx.category || "Shopping", ocrTx.type || "expense"),
-      date: ocrTx.date || toDateKey(),
-      paymentMethod: ocrTx.paymentMethod || "UPI",
-      note: ocrTx.note || "Scanned via OCR",
-      icon: CATEGORY_ICONS[ocrTx.category] || "💳",
-    };
-    handleSaveTransaction(newTx);
-    setShowOcrModal(false);
   }
 
   function handleImportStatementTransactions(imported) {
@@ -3104,7 +2855,11 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
       const type = item.type || "expense";
       const cat = item.category || "Other";
       return {
-        id: "tx_imp_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+        id:
+          "tx_imp_" +
+          Date.now() +
+          "_" +
+          Math.random().toString(36).substring(2, 6),
         title: item.title,
         amount: Number(item.amount),
         type,
@@ -3119,8 +2874,8 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
 
     setTransactions((prev) => [...formatted, ...prev]);
 
-    if (currentUser?.id && !currentUser.isDemo) {
-      apiBulkAddTransactions(currentUser.id, formatted).catch(() => {});
+    if (currentUser?.id && getAuthToken()) {
+      apiBulkAddTransactions(formatted).catch(() => {});
     }
 
     setShowStatementModal(false);
@@ -3131,10 +2886,10 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     if (!confirmed) return;
 
     setTransactions((previous) =>
-      previous.filter((transaction) => transaction.id !== id)
+      previous.filter((transaction) => transaction.id !== id),
     );
 
-    if (!currentUser.isDemo) {
+    if (getAuthToken()) {
       apiDeleteTransaction(id).catch(() => {});
     }
   }
@@ -3148,7 +2903,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     }));
   }
 
-  function saveGoal(event) {
+  async function saveGoal(event) {
     event.preventDefault();
 
     if (!goalForm.name.trim() || !goalForm.target) return;
@@ -3166,38 +2921,44 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
       return;
     }
 
-    if (editingGoalId !== null) {
-      setGoals((previous) =>
-        previous.map((goal) =>
-          goal.id === editingGoalId
-            ? {
-                ...goal,
-                name: goalForm.name.trim(),
-                icon: goalForm.icon || "🎯",
-                category: goalForm.category || "Personal",
-                target,
-                saved,
-                date: goalForm.date,
-              }
-            : goal
-        )
-      );
-    } else {
-      setGoals((previous) => [
-        ...previous,
-        {
-          id: Date.now(),
-          name: goalForm.name.trim(),
-          icon: goalForm.icon || "🎯",
-          category: goalForm.category || "Personal",
-          target,
-          saved,
-          date: goalForm.date,
-        },
-      ]);
-    }
+    const payload = {
+      title: goalForm.name.trim(),
+      targetAmount: target,
+      currentAmount: saved,
+      deadline: goalForm.date || "",
+      category: goalForm.category || "Personal",
+    };
 
-    closeGoalForm();
+    try {
+      if (editingGoalId !== null && getAuthToken()) {
+        const response = await apiUpdateGoal(editingGoalId, payload);
+        const updated = normalizeGoal(response?.goal || { ...payload, id: editingGoalId });
+        setGoals((previous) =>
+          previous.map((goal) => (goal.id === editingGoalId ? updated : goal)),
+        );
+      } else if (getAuthToken()) {
+        const response = await apiCreateGoal(payload);
+        const created = normalizeGoal(response?.goal || { ...payload, id: Date.now() });
+        setGoals((previous) => [created, ...previous]);
+      } else {
+        setGoals((previous) => [
+          ...previous,
+          {
+            id: Date.now(),
+            name: payload.title,
+            icon: goalForm.icon || "🎯",
+            category: payload.category,
+            target,
+            saved,
+            date: payload.deadline,
+          },
+        ]);
+      }
+
+      closeGoalForm();
+    } catch (error) {
+      window.alert(error.message || "Failed to save goal.");
+    }
   }
 
   function editGoal(goal) {
@@ -3217,12 +2978,15 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
 
   function deleteGoal(id) {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this goal?"
+      "Are you sure you want to delete this goal?",
     );
 
     if (!confirmed) return;
 
     setGoals((previous) => previous.filter((goal) => goal.id !== id));
+    if (getAuthToken()) {
+      apiDeleteGoal(id).catch(() => {});
+    }
   }
 
   function openNewGoalForm() {
@@ -3278,6 +3042,23 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
 
   function renderPage() {
     switch (activePage) {
+      case "add":
+        return (
+          <AddPage
+            navigateTo={navigateTo}
+            openTransactionForm={openTransactionForm}
+            openNewGoalForm={openNewGoalForm}
+          />
+        );
+      case "savings":
+        return (
+          <SavingsPage
+            transactions={transactions}
+            goals={goals}
+            openTransactionForm={openTransactionForm}
+            navigateTo={navigateTo}
+          />
+        );
       case "activity":
         return (
           <ActivityPage
@@ -3290,9 +3071,8 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             groupedTransactions={groupedTransactions}
             availableCategories={availableCategories}
             openTransactionForm={openTransactionForm}
-            deleteTransaction={deleteTransaction}
-            onOpenOcr={() => setShowOcrModal(true)}
             onOpenStatementImport={() => setShowStatementModal(true)}
+            deleteTransaction={deleteTransaction}
           />
         );
       case "events":
@@ -3353,15 +3133,6 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             deleteGoal={deleteGoal}
           />
         );
-      case "more":
-        return (
-          <MorePage
-            navigateTo={navigateTo}
-            currentUser={currentUser}
-            onOpenOcr={() => setShowOcrModal(true)}
-            onOpenStatementImport={() => setShowStatementModal(true)}
-          />
-        );
       case "budgets":
         return (
           <BudgetsPage
@@ -3393,7 +3164,15 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             topCategory={monthlyFinances.topCategory}
             averageDailyExpense={
               monthlyFinances.actualSpending > 0
-                ? Math.round(monthlyFinances.actualSpending / (new Date().getDate() || 1))
+                ? Math.round(
+                    monthlyFinances.actualSpending /
+                      Math.max(
+                        1,
+                        currentMonthTransactions.length
+                          ? currentMonthTransactions.length
+                          : 1,
+                      ),
+                  )
                 : 0
             }
             savingsRate={monthlyFinances.savingsRate}
@@ -3405,15 +3184,31 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             onBack={handleBack}
           />
         );
+      case "monthly-review":
+        return (
+          <MonthlyReviewPage
+            selectedMonthKey={selectedMonthKey}
+            setSelectedMonthKey={setSelectedMonthKey}
+            transactions={transactions}
+            events={events}
+            loans={loans}
+            goals={goals}
+            monthlyBudget={monthlyBudget}
+            categoryBudgets={categoryBudgets}
+            onBack={handleBack}
+            openTransactionForm={openTransactionForm}
+          />
+        );
       case "settings":
         return (
           <SettingsPage
             currentUser={currentUser}
             transactions={transactions}
             goals={goals}
+            events={events}
+            loans={loans}
             onLogout={handleLogout}
             onResetAccountData={handleResetAccountData}
-            onLoadDemoData={handleLoadDemoData}
             onBack={handleBack}
             onUpdateUser={handleUpdateUser}
           />
@@ -3422,25 +3217,11 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
         return (
           <HomePage
             currentUser={currentUser}
-            selectedMonthKey={selectedMonthKey}
-            setSelectedMonthKey={setSelectedMonthKey}
             monthlyFinances={monthlyFinances}
-            events={events}
-            loans={loans}
             goals={goals}
+            loans={loans}
             transactions={transactions}
-            guardActive={guardActive}
-            overLimitCategories={overLimitCategories}
-            nearLimitCategories={nearLimitCategories}
-            categoryBudgetAlerts={categoryBudgetAlerts}
             navigateTo={navigateTo}
-            openNewGoalForm={openNewGoalForm}
-            editGoal={editGoal}
-            deleteGoal={deleteGoal}
-            openTransactionForm={openTransactionForm}
-            deleteTransaction={deleteTransaction}
-            onOpenOcr={() => setShowOcrModal(true)}
-            onOpenStatementImport={() => setShowStatementModal(true)}
           />
         );
     }
@@ -3450,7 +3231,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     <div className="app">
       <main>{renderPage()}</main>
 
-      <nav className="bottom-nav">
+      <nav className="bottom-nav" aria-label="Primary navigation">
         <NavItem
           icon="⌂"
           label="Home"
@@ -3468,34 +3249,27 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
         <button
           className="add-btn"
           type="button"
-          onClick={() => openTransactionForm()}
-          aria-label="Add transaction"
+          onClick={() => navigateTo("add")}
+          aria-label="Add"
         >
-          +
+          <span>+</span>
+          <small>Add</small>
         </button>
 
         <NavItem
-          icon="💍"
+          icon="◫"
           label="Events"
           active={activePage === "events"}
           onClick={() => navigateTo("events")}
         />
 
         <NavItem
-          icon="💳"
-          label="Loans"
-          active={activePage === "loans"}
-          onClick={() => navigateTo("loans")}
-        />
-
-        <NavItem
-          icon="☰"
-          label="More"
-          active={["more", "reports", "goals", "budgets", "guard", "insights", "settings"].includes(activePage)}
-          onClick={() => navigateTo("more")}
+          icon="⚙"
+          label="Settings"
+          active={activePage === "settings"}
+          onClick={() => navigateTo("settings")}
         />
       </nav>
-
       {/* Modern 7-Type Transaction Modal */}
       <TransactionModal
         isOpen={showTxModal}
@@ -3504,7 +3278,6 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
         events={events}
         loans={loans}
         initialData={initialTxData}
-        onOpenOcr={() => setShowOcrModal(true)}
       />
 
       {showGoalForm && (
@@ -3520,7 +3293,11 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
                 <h2>{editingGoalId !== null ? "Edit Goal" : "New Goal"}</h2>
               </div>
 
-              <button className="close-btn" type="button" onClick={closeGoalForm}>
+              <button
+                className="close-btn"
+                type="button"
+                onClick={closeGoalForm}
+              >
                 ×
               </button>
             </div>
@@ -3610,27 +3387,11 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
         </div>
       )}
 
-      <ReceiptScannerModal
-        isOpen={showOcrModal}
-        onClose={() => setShowOcrModal(false)}
-        onApplyTransaction={handleApplyOcrTransaction}
-      />
-
       <StatementImportModal
         isOpen={showStatementModal}
         onClose={() => setShowStatementModal(false)}
         onImportTransactions={handleImportStatementTransactions}
       />
-    </div>
-  );
-}
-
-function StatCard({ label, value, hint, type = "default" }) {
-  return (
-    <div className={`stat-card stat-${type}`}>
-      <span>{label}</span>
-      <strong>{formatCurrency(value)}</strong>
-      <small>{hint}</small>
     </div>
   );
 }
@@ -3674,10 +3435,18 @@ function GoalCard({ goal, compact = false, onEdit, onDelete }) {
 
       {!compact && (
         <div className="goal-actions">
-          <button className="goal-edit" type="button" onClick={() => onEdit(goal)}>
+          <button
+            className="goal-edit"
+            type="button"
+            onClick={() => onEdit(goal)}
+          >
             ✏️ Edit
           </button>
-          <button className="goal-delete" type="button" onClick={() => onDelete(goal.id)}>
+          <button
+            className="goal-delete"
+            type="button"
+            onClick={() => onDelete(goal.id)}
+          >
             🗑 Delete
           </button>
         </div>
@@ -3686,24 +3455,32 @@ function GoalCard({ goal, compact = false, onEdit, onDelete }) {
   );
 }
 
-function Transaction({ transaction, onDelete, detailed = false }) {
+function Transaction({ transaction, onEdit, onDelete, detailed = false }) {
   const isPositive = transaction.type === "income";
   const typeClass = transaction.type || "expense";
 
   return (
     <div className="transaction">
       <div className="transaction-left">
-        <div className={`transaction-icon tx-icon-${typeClass}`}>{transaction.icon || "💳"}</div>
+        <div className={`transaction-icon tx-icon-${typeClass}`}>
+          {transaction.icon || "💳"}
+        </div>
 
         <div className="transaction-info">
           <div className="tx-title-row">
             <strong>{transaction.title}</strong>
-            {transaction.eventId && <span className="tx-badge event-badge">💍 Event</span>}
-            {transaction.loanId && <span className="tx-badge loan-badge">🏠 Loan</span>}
+            {transaction.eventId && (
+              <span className="tx-badge event-badge">💍 Event</span>
+            )}
+            {transaction.loanId && (
+              <span className="tx-badge loan-badge">🏠 Loan</span>
+            )}
           </div>
 
           <small>
-            <span className={`tx-type-tag ${typeClass}`}>{typeClass.replace("_", " ")}</span>
+            <span className={`tx-type-tag ${typeClass}`}>
+              {typeClass.replace("_", " ")}
+            </span>
             {" · "}
             {transaction.category} · {formatShortDate(transaction.date)}
             {detailed && transaction.paymentMethod
@@ -3719,10 +3496,25 @@ function Transaction({ transaction, onDelete, detailed = false }) {
 
       <div className="transaction-right">
         <strong className={`tx-amount ${typeClass}`}>
-          {isPositive ? "+" : transaction.type === "transfer" || transaction.type === "cash_withdrawal" ? "• " : "-"}
+          {isPositive
+            ? "+"
+            : transaction.type === "transfer" ||
+                transaction.type === "cash_withdrawal"
+              ? "• "
+              : "-"}
           {formatCurrency(transaction.amount)}
         </strong>
 
+        {onEdit && (
+          <button
+            className="transaction-edit"
+            type="button"
+            onClick={() => onEdit(transaction)}
+            aria-label={`Edit ${transaction.title}`}
+          >
+            ✎
+          </button>
+        )}
         <button
           className="transaction-delete"
           type="button"
@@ -3752,7 +3544,11 @@ function EmptyState({ icon, title, text, action, onAction }) {
       <div>{icon}</div>
       <h3>{title}</h3>
       <p>{text}</p>
-      {action && <button type="button" onClick={onAction}>{action}</button>}
+      {action && (
+        <button type="button" onClick={onAction}>
+          {action}
+        </button>
+      )}
     </div>
   );
 }
