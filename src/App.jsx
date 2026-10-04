@@ -16,7 +16,6 @@ import {
 } from "./utils/fileExtractor";
 import {
   calculateMonthlyFinances,
- 
   toMonthKey,
   isDateInMonth,
   getMajorHead,
@@ -690,7 +689,7 @@ function AuthScreen({ onLogin }) {
 
 function HomePage({
   currentUser,
- 
+
   monthlyFinances,
   goals = [],
   categoryBudgetAlerts = [],
@@ -708,19 +707,11 @@ function HomePage({
   const netAvailable = Number(finances.netAvailableCashFlow || 0);
   const totalIncome = Number(finances.totalIncome || 0);
   const actualSpending = Number(finances.actualSpending || 0);
-  const remainingBudget = Math.max(
-    Number(finances.remainingBudget || 0),
-    0,
-  );
-  const safeToSpendToday = Math.max(
-    Number(finances.safeToSpendDaily || 0),
-    0,
-  );
+  const remainingBudget = Math.max(Number(finances.remainingBudget || 0), 0);
+  const safeToSpendToday = Math.max(Number(finances.safeToSpendDaily || 0), 0);
 
   const spendingPercentage =
-    totalIncome > 0
-      ? Math.min((actualSpending / totalIncome) * 100, 100)
-      : 0;
+    totalIncome > 0 ? Math.min((actualSpending / totalIncome) * 100, 100) : 0;
 
   const isSurplus = netAvailable >= 0;
 
@@ -731,11 +722,7 @@ function HomePage({
           ================================================================ */}
       <header className="dashboard-header">
         <div className="dashboard-brand">
-          <PaceLogo
-            size={46}
-            variant="tile"
-            className="dashboard-logo"
-          />
+          <PaceLogo size={46} variant="tile" className="dashboard-logo" />
 
           <div>
             <h1>PACE</h1>
@@ -750,17 +737,12 @@ function HomePage({
           aria-label="Open profile and settings"
         >
           {currentUser?.picture ? (
-            <img
-              src={currentUser.picture}
-              alt=""
-            />
+            <img src={currentUser.picture} alt="" />
           ) : (
             <span>{userInitial}</span>
           )}
         </button>
       </header>
-
-      
 
       {/* ================================================================
           NET AVAILABLE BALANCE
@@ -768,9 +750,7 @@ function HomePage({
       <section className="dashboard-balance-card">
         <div className="dashboard-balance-top">
           <div>
-            <span className="dashboard-eyebrow">
-              NET AVAILABLE BALANCE
-            </span>
+            <span className="dashboard-eyebrow">NET AVAILABLE BALANCE</span>
 
             <h2 className={isSurplus ? "positive" : "negative"}>
               {formatCurrency(netAvailable)}
@@ -795,9 +775,7 @@ function HomePage({
           <div>
             <span>Committed</span>
             <strong>
-              {formatCurrency(
-                Number(finances.committedOutflows || 0),
-              )}
+              {formatCurrency(Number(finances.committedOutflows || 0))}
             </strong>
           </div>
         </div>
@@ -809,9 +787,7 @@ function HomePage({
       <section className="dashboard-section">
         <div className="dashboard-section-heading">
           <div>
-            <span className="dashboard-section-kicker">
-              THIS MONTH
-            </span>
+            <span className="dashboard-section-kicker">THIS MONTH</span>
             <h2>Remaining Budget</h2>
           </div>
 
@@ -831,30 +807,21 @@ function HomePage({
               <strong>{formatCurrency(remainingBudget)}</strong>
             </div>
 
-            <div className="dashboard-budget-icon">
-              ₹
-            </div>
+            <div className="dashboard-budget-icon">₹</div>
           </div>
 
           <div className="dashboard-progress">
             <div
               className="dashboard-progress-fill"
               style={{
-                width: `${Math.min(
-                  Number(finances.budgetUsed || 0),
-                  100,
-                )}%`,
+                width: `${Math.min(Number(finances.budgetUsed || 0), 100)}%`,
               }}
             />
           </div>
 
           <div className="dashboard-progress-meta">
-            <span>
-              {Number(finances.budgetUsed || 0).toFixed(0)}% used
-            </span>
-            <span>
-              {formatCurrency(remainingBudget)} left
-            </span>
+            <span>{Number(finances.budgetUsed || 0).toFixed(0)}% used</span>
+            <span>{formatCurrency(remainingBudget)} left</span>
           </div>
         </div>
 
@@ -890,10 +857,7 @@ function HomePage({
                     <div className="dashboard-mini-progress">
                       <span
                         style={{
-                          width: `${Math.min(
-                            percentage,
-                            100,
-                          )}%`,
+                          width: `${Math.min(percentage, 100)}%`,
                         }}
                       />
                     </div>
@@ -915,10 +879,7 @@ function HomePage({
               </small>
             </div>
 
-            <button
-              type="button"
-              onClick={() => navigateTo("budgets")}
-            >
+            <button type="button" onClick={() => navigateTo("budgets")}>
               Set up
             </button>
           </div>
@@ -931,9 +892,7 @@ function HomePage({
       <section className="dashboard-section">
         <div className="dashboard-section-heading">
           <div>
-            <span className="dashboard-section-kicker">
-              SPENDING
-            </span>
+            <span className="dashboard-section-kicker">SPENDING</span>
             <h2>This Month</h2>
           </div>
 
@@ -955,9 +914,7 @@ function HomePage({
               }}
             >
               <div>
-                <strong>
-                  {spendingPercentage.toFixed(0)}%
-                </strong>
+                <strong>{spendingPercentage.toFixed(0)}%</strong>
                 <span>spent</span>
               </div>
             </div>
@@ -966,15 +923,11 @@ function HomePage({
           <div className="dashboard-spending-summary">
             <span>Actual spending</span>
 
-            <strong>
-              {formatCurrency(actualSpending)}
-            </strong>
+            <strong>{formatCurrency(actualSpending)}</strong>
 
             <small>
-              {formatCurrency(
-                Math.max(totalIncome - actualSpending, 0),
-              )}{" "}
-              of income remaining after spending
+              {formatCurrency(Math.max(totalIncome - actualSpending, 0))} of
+              income remaining after spending
             </small>
           </div>
         </div>
@@ -986,25 +939,19 @@ function HomePage({
       <section className="dashboard-safe-card">
         <div className="dashboard-safe-header">
           <div>
-            <span className="dashboard-eyebrow">
-              TODAY
-            </span>
+            <span className="dashboard-eyebrow">TODAY</span>
 
             <h2>Safe to Spend</h2>
           </div>
 
-          <div className="dashboard-safe-icon">
-            ✓
-          </div>
+          <div className="dashboard-safe-icon">✓</div>
         </div>
 
         <strong className="dashboard-safe-amount">
           {formatCurrency(safeToSpendToday)}
         </strong>
 
-        <p>
-          Daily amount based on your remaining monthly budget.
-        </p>
+        <p>Daily amount based on your remaining monthly budget.</p>
       </section>
 
       {/* ================================================================
@@ -1013,9 +960,7 @@ function HomePage({
       <section className="dashboard-section">
         <div className="dashboard-section-heading">
           <div>
-            <span className="dashboard-section-kicker">
-              FUTURE
-            </span>
+            <span className="dashboard-section-kicker">FUTURE</span>
             <h2>Your Goals</h2>
           </div>
 
@@ -1030,21 +975,14 @@ function HomePage({
 
         {goals.length === 0 ? (
           <div className="dashboard-empty-goals">
-            <div className="dashboard-goal-empty-icon">
-              🎯
-            </div>
+            <div className="dashboard-goal-empty-icon">🎯</div>
 
             <div>
               <strong>No goals yet</strong>
-              <small>
-                Create a goal and give your savings a purpose.
-              </small>
+              <small>Create a goal and give your savings a purpose.</small>
             </div>
 
-            <button
-              type="button"
-              onClick={openNewGoalForm}
-            >
+            <button type="button" onClick={openNewGoalForm}>
               + Create Goal
             </button>
           </div>
@@ -1076,10 +1014,8 @@ function ActivityPage({
   groupedTransactions,
   availableCategories,
   openTransactionForm,
-  
+
   deleteTransaction,
-  onOpenOcr,
-  onOpenStatementImport,
 }) {
   return (
     <div className="page-content page">
@@ -1099,34 +1035,6 @@ function ActivityPage({
         </button>
       </div>
 
-      <div className="home-tools-grid">
-        <button
-          type="button"
-          className="home-tool-card ocr"
-          onClick={onOpenOcr}
-        >
-          <div className="home-tool-icon">📸</div>
-          <div className="home-tool-content">
-            <strong>Scan Bill (OCR)</strong>
-            <small>Coming in V2</small>
-          </div>
-          <span className="home-tool-arrow">→</span>
-        </button>
-
-        <button
-          type="button"
-          className="home-tool-card stmt"
-          onClick={onOpenStatementImport}
-        >
-          <div className="home-tool-icon">📑</div>
-          <div className="home-tool-content">
-            <strong>Bank / GPay</strong>
-            <small>PDF, Excel, Screen</small>
-          </div>
-          <span className="home-tool-arrow">→</span>
-        </button>
-      </div>
-
       <div className="activity-toolbar">
         <div className="search-box">
           <span>⌕</span>
@@ -1137,100 +1045,29 @@ function ActivityPage({
           />
         </div>
 
-        <div
-          className="filter-row"
-          style={{
-            overflowX: "auto",
-            flexWrap: "nowrap",
-            paddingBottom: "6px",
-          }}
-        >
-          <button
-            type="button"
-            className={
-              activityType === "all" ? "filter-chip active" : "filter-chip"
-            }
-            onClick={() => setActivityType("all")}
+        <div className="activity-filter-row">
+          <select
+            className="activity-type-select"
+            value={activityType}
+            onChange={(event) => setActivityType(event.target.value)}
           >
-            All
-          </button>
-          <button
-            type="button"
-            className={
-              activityType === "expense" ? "filter-chip active" : "filter-chip"
-            }
-            onClick={() => setActivityType("expense")}
-          >
-            Expenses
-          </button>
-          <button
-            type="button"
-            className={
-              activityType === "income" ? "filter-chip active" : "filter-chip"
-            }
-            onClick={() => setActivityType("income")}
-          >
-            Income
-          </button>
-          <button
-            type="button"
-            className={
-              activityType === "savings" ? "filter-chip active" : "filter-chip"
-            }
-            onClick={() => setActivityType("savings")}
-          >
-            Savings
-          </button>
-          <button
-            type="button"
-            className={
-              activityType === "investment"
-                ? "filter-chip active"
-                : "filter-chip"
-            }
-            onClick={() => setActivityType("investment")}
-          >
-            Investments
-          </button>
-          <button
-            type="button"
-            className={
-              activityType === "debt_repayment"
-                ? "filter-chip active"
-                : "filter-chip"
-            }
-            onClick={() => setActivityType("debt_repayment")}
-          >
-            Debt/EMI
-          </button>
-          <button
-            type="button"
-            className={
-              activityType === "transfer" ? "filter-chip active" : "filter-chip"
-            }
-            onClick={() => setActivityType("transfer")}
-          >
-            Transfers
-          </button>
-          <button
-            type="button"
-            className={
-              activityType === "cash_withdrawal"
-                ? "filter-chip active"
-                : "filter-chip"
-            }
-            onClick={() => setActivityType("cash_withdrawal")}
-          >
-            Cash
-          </button>
-        </div>
+            <option value="all">All</option>
+            <option value="expense">Expenses</option>
+            <option value="income">Income</option>
+            <option value="savings">Savings</option>
+            <option value="investment">Investments</option>
+            <option value="debt_repayment">Debt/EMI</option>
+            <option value="transfer">Transfers</option>
+            <option value="cash_withdrawal">Cash</option>
+          </select>
+       
 
         <select
           className="activity-category-select"
           value={activityCategory}
           onChange={(event) => setActivityCategory(event.target.value)}
         >
-          <option value="all">All categories</option>
+          <option value="all" class>All categories</option>
           {availableCategories.map((category) => (
             <option key={category} value={category}>
               {category}
@@ -1238,6 +1075,7 @@ function ActivityPage({
           ))}
         </select>
       </div>
+       </div>
 
       {groupedTransactions.length === 0 ? (
         <EmptyState
@@ -1935,7 +1773,6 @@ function SettingsPage({
   // Financial preferences local state
   const [budgetInput, setBudgetInput] = useState(monthlyBudget || 0);
   const [defaultPaymentMethod, setDefaultPaymentMethod] = useState("UPI");
-  
 
   // Email notifications state
   const [emailNotifs, setEmailNotifs] = useState(() => ({
@@ -2142,10 +1979,10 @@ function SettingsPage({
     }
   }
   function handlePaymentMethodChange(e) {
-  const val = e.target.value;
-  setDefaultPaymentMethod(val);
-  saveLocal(`pace_usr_${currentUser?.id}_default_payment`, val);
-}
+    const val = e.target.value;
+    setDefaultPaymentMethod(val);
+    saveLocal(`pace_usr_${currentUser?.id}_default_payment`, val);
+  }
 
   // Account Deletion Handler
   async function handleDeleteAccount(e) {
@@ -2214,8 +2051,7 @@ function SettingsPage({
       {/* SECTION 1: ACCOUNT & SECURITY */}
       <section className="settings-section">
         <div className="section-title-sm">
-          <span>1. ACCOUNT & SECURITY</span>
-          <small>Manage identity, password & permanent deletion</small>
+          <span>ACCOUNT & SECURITY</span>
         </div>
 
         <div className="settings-card">
@@ -2245,13 +2081,7 @@ function SettingsPage({
             </span>
           </div>
 
-          <div className="settings-row">
-            <div>
-              <strong>Session Security</strong>
-              <small>Bank-Grade Token Encryption</small>
-            </div>
-            <span className="security-badge jwt">🔒 Active</span>
-          </div>
+          
 
           {currentUser?.authProvider !== "google" && (
             <div
@@ -2340,64 +2170,19 @@ function SettingsPage({
             </div>
           )}
 
-          {/* Account Deletion Trigger */}
-          <div
-            className="settings-row"
-            style={{
-              borderTop: "1px solid rgba(239, 68, 68, 0.2)",
-              paddingTop: 14,
-              marginTop: 10,
-            }}
-          >
-            <div>
-              <strong style={{ color: "#ef4444" }}>Delete Account</strong>
-              <small>
-                Permanently erase user account and all 6 financial collections
-              </small>
-            </div>
-            <button
-              type="button"
-              className="danger-btn-sm"
-              style={{
-                background: "rgba(239, 68, 68, 0.15)",
-                color: "#ef4444",
-                border: "1px solid rgba(239, 68, 68, 0.3)",
-                padding: "6px 14px",
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-              onClick={() => {
-                setDeleteError("");
-                setDeleteConfirmPassword("");
-                setDeleteConfirmText("");
-                setShowDeleteModal(true);
-              }}
-            >
-              Delete Account
-            </button>
-          </div>
+          
         </div>
       </section>
 
       {/* SECTION 2: FINANCIAL PREFERENCES */}
       <section className="settings-section" style={{ marginTop: 20 }}>
         <div className="section-title-sm">
-          <span>2. FINANCE & PREFERENCES</span>
+          <span>FINANCE </span>
           <small>Currency, monthly budget & payment defaults</small>
         </div>
 
         <div className="settings-card">
-          <div className="settings-row">
-            <div>
-              <strong>Primary Currency</strong>
-              <small>Default currency format for all calculations</small>
-            </div>
-            <span className="security-badge">INR (₹)</span>
-          </div>
-
-          <div
+            <div
             className="settings-row"
             style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}
           >
@@ -2992,7 +2777,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
 
   // ---------------------------------------------------------------------------
   // PACE NAVIGATION
-  // Uses the browser history as the single source of truth so that: 
+  // Uses the browser history as the single source of truth so that:
   // - PACE page navigation works normally
   // - Browser Back works
   // - Android/iOS browser back works
@@ -3028,11 +2813,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
 
     setActivePage(page);
 
-    window.history.pushState(
-      { pace: true, page },
-      "",
-      window.location.href,
-    );
+    window.history.pushState({ pace: true, page }, "", window.location.href);
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -3086,7 +2867,8 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
 
     apiGetEvents()
       .then((data) => {
-        if (Array.isArray(data?.events)) setEvents(data.events.map(normalizeEvent));
+        if (Array.isArray(data?.events))
+          setEvents(data.events.map(normalizeEvent));
       })
       .catch(() => {});
 
@@ -3186,7 +2968,9 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
       }
     }
     setEvents((prev) =>
-      prev.map((event) => (event.id === updatedEvent.id ? updatedEvent : event)),
+      prev.map((event) =>
+        event.id === updatedEvent.id ? updatedEvent : event,
+      ),
     );
   }
 
@@ -3487,13 +3271,17 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     try {
       if (editingGoalId !== null && getAuthToken()) {
         const response = await apiUpdateGoal(editingGoalId, payload);
-        const updated = normalizeGoal(response?.goal || { ...payload, id: editingGoalId });
+        const updated = normalizeGoal(
+          response?.goal || { ...payload, id: editingGoalId },
+        );
         setGoals((previous) =>
           previous.map((goal) => (goal.id === editingGoalId ? updated : goal)),
         );
       } else if (getAuthToken()) {
         const response = await apiCreateGoal(payload);
-        const created = normalizeGoal(response?.goal || { ...payload, id: Date.now() });
+        const created = normalizeGoal(
+          response?.goal || { ...payload, id: Date.now() },
+        );
         setGoals((previous) => [created, ...previous]);
       } else {
         setGoals((previous) => [
