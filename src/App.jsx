@@ -2174,93 +2174,10 @@ function SettingsPage({
         </div>
       </section>
 
-      {/* SECTION 2: FINANCIAL PREFERENCES */}
-      <section className="settings-section" style={{ marginTop: 20 }}>
-        <div className="section-title-sm">
-          <span>FINANCE </span>
-          <small>Currency, monthly budget & payment defaults</small>
-        </div>
-
-        <div className="settings-card">
-            <div
-            className="settings-row"
-            style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}
-          >
-            <div>
-              <strong>Monthly Spending Budget</strong>
-              <small>
-                Base budget used for Safe-to-Spend & Spending Guard calculations
-              </small>
-            </div>
-            <form
-              onSubmit={handleSaveBudget}
-              style={{ display: "flex", gap: 10, marginTop: 4 }}
-            >
-              <input
-                type="number"
-                min="1000"
-                step="500"
-                value={budgetInput}
-                onChange={(e) => setBudgetInput(e.target.value)}
-                style={{
-                  flex: 1,
-                  background: "rgba(15, 23, 42, 0.6)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: 8,
-                  padding: "8px 12px",
-                  color: "#f8fafc",
-                  fontSize: 14,
-                }}
-              />
-              <button
-                type="submit"
-                style={{
-                  background: "#10b981",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "8px 16px",
-                  fontWeight: 600,
-                  fontSize: 13,
-                  cursor: "pointer",
-                }}
-              >
-                Save
-              </button>
-            </form>
-          </div>
-
-          <div className="settings-row">
-            <div>
-              <strong>Default Payment Method</strong>
-              <small>Pre-selected method when logging new transactions</small>
-            </div>
-            <select
-              value={defaultPaymentMethod}
-              onChange={handlePaymentMethodChange}
-              style={{
-                background: "rgba(15, 23, 42, 0.8)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                color: "#f8fafc",
-                borderRadius: 8,
-                padding: "6px 12px",
-                fontSize: 13,
-              }}
-            >
-              {PAYMENT_METHODS.map((pm) => (
-                <option key={pm} value={pm}>
-                  {pm}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </section>
-
       {/* SECTION 3: EMAIL NOTIFICATIONS & ALERTS */}
       <section className="settings-section" style={{ marginTop: 20 }}>
         <div className="section-title-sm">
-          <span>3. NOTIFICATIONS & EMAIL ALERTS</span>
+          <span> NOTIFICATIONS & EMAIL ALERTS</span>
           <small>Configure automated spending alerts & report delivery</small>
         </div>
 

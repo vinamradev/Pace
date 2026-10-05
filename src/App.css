@@ -1733,6 +1733,7 @@ button {
   font-weight: 350;
   display: flex;
   align-items: center;
+  padding-bottom: 7px;
   justify-content: center;
   box-shadow:
     0 8px 24px rgba(255, 255, 255, 0.22),
@@ -3101,7 +3102,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 0;
+  padding: 14px 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -3174,9 +3175,13 @@ button {
 
 .action-btn-group {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
   margin-top: 14px;
+  margin-bottom: 12px;
+  /* width:80%; */
+  padding:0 0.5em;
+  box-sizing: border-box;
 }
 
 .secondary-action-btn {
@@ -3184,14 +3189,21 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.09);
   color: #e2e8f0;
   border-radius: 12px;
-  padding: 10px 14px;
+  padding: 10px 20px;
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
+
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  
+  gap: 2px;
+
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+
   transition: all 0.2s ease;
 }
 
@@ -3208,7 +3220,7 @@ button {
 
 @media screen and (max-width: 500px) {
   .action-btn-group {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -6295,7 +6307,7 @@ body,
 
 .app main {
   min-height: 100dvh;
-  padding-bottom: 112px !important;
+  /* padding-bottom: 112px !important; */
 }
 
 .page-content.page,
