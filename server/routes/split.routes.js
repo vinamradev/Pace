@@ -95,7 +95,7 @@ router.post("/", async (req, res) => {
       paidBy: cleanText(paidBy),
       paymentMethod: method,
       payerTransactionId: payerTransaction?._id || null,
-      participants: participants.map(p => ({ name: cleanText(p.name), share: round2(p.share), settledAmount: 0, settlements: [] }))
+      participants: participants.map(p => ({ name: cleanText(p.name), share: round2(p.share), settledAmount: cleanText(p.name).toLowerCase() === cleanText(paidBy).toLowerCase() ? round2(p.share) : 0, settlements: [] }))
     });
 
     res.status(201).json({ success: true, split: present(split), payerTransaction });
