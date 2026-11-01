@@ -19,6 +19,7 @@ import budgetRoutes from "./routes/budget.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import eventRoutes from "./routes/event.routes.js";
 import loanRoutes from "./routes/loan.routes.js";
+import splitRoutes from "./routes/split.routes.js";
 import {
   helmetConfig,
   sanitizeMiddleware,
@@ -68,6 +69,7 @@ app.use("/api/budgets", budgetRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/loans", loanRoutes);
+app.use("/api/splits", splitRoutes);
 
 // 8. 404 Handler for unmatched routes
 app.use("/api/*", (req, res) => {
