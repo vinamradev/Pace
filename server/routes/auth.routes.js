@@ -642,6 +642,7 @@ router.delete("/account", authenticateToken, async (req, res) => {
       session.startTransaction();
 
       await Transaction.deleteMany({ userId }, { session });
+      await SplitExpense.deleteMany({ userId }, { session });
       await Event.deleteMany({ userId }, { session });
       await Loan.deleteMany({ userId }, { session });
       await Budget.deleteMany({ userId }, { session });
