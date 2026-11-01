@@ -3180,15 +3180,26 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
       }
     }
 
-    setSplits((previous) => previous.map((split) => {
-      if (split.id !== splitId) return split;
+    const split = splits.find((item) => item.id === splitId);
+    const participant = split?.participants.find((person) => person.id === settlement.participantId);
+    const payerIsMe = String(split?.paidBy || "").toLowerCase() === "me";
+    const participantIsMe = String(participant?.name || "").toLowerCase() === "me";
+    const amount = Number(settlement.amount);
+    const outstanding = Math.round((Number(participant?.share || 0) - Number(participant?.settledAmount || 0)) * 100) / 100;
+    if (!participant || (payerIsMe ? participantIsMe : !participantIsMe) || !Number.isFinite(amount) || amount <= 0 || Math.round(amount * 100) !== amount * 100 || amount > outstanding + 0.001) {
+      window.alert("Enter a valid settlement amount within the outstanding balance.");
+      return false;
+    }
+
+    setSplits((previous) => previous.map((item) => {
+      if (item.id !== splitId) return item;
       return {
-        ...split,
-        participants: split.participants.map((person) => {
+        ...item,
+        participants: item.participants.map((person) => {
           if (person.id !== settlement.participantId) return person;
           return {
             ...person,
-            settledAmount: Math.round((Number(person.settledAmount || 0) + Number(settlement.amount)) * 100) / 100,
+            settledAmount: Math.round((Number(person.settledAmount || 0) + amount) * 100) / 100,
             settlements: [...(person.settlements || []), settlement],
           };
         }),
