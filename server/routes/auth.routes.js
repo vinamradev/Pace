@@ -11,6 +11,7 @@ import Transaction from "../models/Transaction.js";
 import Event from "../models/Event.js";
 import Loan from "../models/Loan.js";
 import Goal from "../models/Goal.js";
+import SplitExpense from "../models/SplitExpense.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import { authRateLimiter, otpRateLimiter } from "../middleware/security.middleware.js";
 import {
