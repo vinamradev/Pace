@@ -95,6 +95,13 @@ const transactionSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    // Linked split record; prevents editing the user's share outside Split page.
+    splitExpenseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SplitExpense",
+      default: null,
+      index: true,
+    },
     // Optional Loan Association (e.g. Home Loan EMI)
     loanId: {
       type: mongoose.Schema.Types.Mixed, // Supports ObjectId or local client string ID
