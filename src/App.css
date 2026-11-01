@@ -4502,6 +4502,11 @@ button {
   color: #fb923c;
 }
 
+.split-badge {
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
+}
+
 .tx-type-tag {
   text-transform: capitalize;
   font-weight: 600;
