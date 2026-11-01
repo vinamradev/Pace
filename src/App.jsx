@@ -10,6 +10,7 @@ import LoansPage from "./components/LoansPage";
 import ReportsPage from "./components/ReportsPage";
 import MonthlyReviewPage from "./components/MonthlyReviewPage";
 import TransactionModal from "./components/TransactionModal";
+import SplitPage from "./components/SplitPage";
 import {
   exportTransactionsToCSV,
   exportFinancialDataJSON,
@@ -46,6 +47,10 @@ import {
   apiCreateTransaction,
   apiUpdateTransaction,
   apiDeleteTransaction,
+  apiGetSplits,
+  apiCreateSplit,
+  apiSettleSplit,
+  apiDeleteSplit,
   apiDeleteAccount,
   apiGetBudget,
   apiGetGoals,
@@ -2598,6 +2603,20 @@ function normalizeTransaction(tx) {
   return { ...tx, id: tx.id || tx._id };
 }
 
+function normalizeSplit(split) {
+  return {
+    ...split,
+    id: split.id || split._id,
+    participants: (split.participants || []).map((person) => ({
+      ...person,
+      id: person.id || person._id,
+      share: Number(person.share || 0),
+      settledAmount: Number(person.settledAmount || 0),
+      settlements: person.settlements || [],
+    })),
+  };
+}
+
 function normalizeEvent(event) {
   return { ...event, id: event.id || event._id };
 }
@@ -2663,6 +2682,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
   );
 
   const [loans, setLoans] = useState(() => loadLocal(`${userKey}_loans`, []));
+  const [splits, setSplits] = useState(() => loadLocal(`${userKey}_splits`, []).map(normalizeSplit));
 
   const [monthlyBudget, setMonthlyBudget] = useState(() =>
     Number(loadLocal(`${userKey}_monthly-budget`, defaultBudget)),
@@ -2765,6 +2785,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
   useEffect(() => saveLocal(`${userKey}_goals`, goals), [userKey, goals]);
   useEffect(() => saveLocal(`${userKey}_events`, events), [userKey, events]);
   useEffect(() => saveLocal(`${userKey}_loans`, loans), [userKey, loans]);
+  useEffect(() => saveLocal(`${userKey}_splits`, splits), [userKey, splits]);
   useEffect(
     () => saveLocal(`${userKey}_monthly-budget`, monthlyBudget),
     [userKey, monthlyBudget],
@@ -2792,6 +2813,12 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     apiGetLoans()
       .then((data) => {
         if (Array.isArray(data?.loans)) setLoans(data.loans.map(normalizeLoan));
+      })
+      .catch(() => {});
+
+    apiGetSplits()
+      .then((data) => {
+        if (Array.isArray(data?.splits)) setSplits(data.splits.map(normalizeSplit));
       })
       .catch(() => {});
 
@@ -2846,11 +2873,13 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     setGoals([]);
     setEvents([]);
     setLoans([]);
+    setSplits([]);
     setCategoryBudgets({});
     saveLocal(`${userKey}_transactions`, []);
     saveLocal(`${userKey}_goals`, []);
     saveLocal(`${userKey}_events`, []);
     saveLocal(`${userKey}_loans`, []);
+    saveLocal(`${userKey}_splits`, []);
     saveLocal(`${userKey}_category-budgets`, {});
   }
 
@@ -3082,6 +3111,110 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     }
 
     setTransactions((prev) => [newTx, ...prev]);
+  }
+
+  async function handleCreateSplit(payload) {
+    if (getAuthToken()) {
+      try {
+        const response = await apiCreateSplit(payload);
+        const savedSplit = normalizeSplit(response?.split || payload);
+        setSplits((previous) => [savedSplit, ...previous]);
+        if (response?.payerTransaction) {
+          setTransactions((previous) => [
+            normalizeTransaction(response.payerTransaction),
+            ...previous,
+          ]);
+        }
+        return true;
+      } catch (error) {
+        window.alert(error.message || "Failed to create split.");
+        return false;
+      }
+    }
+
+    const id = `split_${Date.now()}`;
+    const savedSplit = normalizeSplit({
+      ...payload,
+      id,
+      participants: payload.participants.map((person, index) => ({
+        ...person,
+        id: `${id}_person_${index}`,
+        settledAmount: 0,
+        settlements: [],
+      })),
+      createdAt: new Date().toISOString(),
+    });
+    setSplits((previous) => [savedSplit, ...previous]);
+
+    const meShare = Number(
+      payload.participants.find((person) => person.name.toLowerCase() === "me")?.share || 0,
+    );
+    if (meShare > 0) {
+      setTransactions((previous) => [{
+        id: `split_tx_${Date.now()}`,
+        title: payload.title,
+        amount: meShare,
+        type: "expense",
+        category: payload.category || "Other",
+        majorHead: "Lifestyle",
+        date: payload.date,
+        paymentMethod: payload.paymentMethod,
+        note: "PACE Split • your share only",
+        splitId: id,
+        icon: "💸",
+      }, ...previous]);
+    }
+    return true;
+  }
+
+  async function handleSettleSplit(splitId, settlement) {
+    if (getAuthToken()) {
+      try {
+        const response = await apiSettleSplit(splitId, settlement);
+        const savedSplit = normalizeSplit(response?.split);
+        setSplits((previous) => previous.map((item) => item.id === splitId ? savedSplit : item));
+        return true;
+      } catch (error) {
+        window.alert(error.message || "Failed to record settlement.");
+        return false;
+      }
+    }
+
+    setSplits((previous) => previous.map((split) => {
+      if (split.id !== splitId) return split;
+      return {
+        ...split,
+        participants: split.participants.map((person) => {
+          if (person.id !== settlement.participantId) return person;
+          return {
+            ...person,
+            settledAmount: Math.round((Number(person.settledAmount || 0) + Number(settlement.amount)) * 100) / 100,
+            settlements: [...(person.settlements || []), settlement],
+          };
+        }),
+      };
+    }));
+    return true;
+  }
+
+  async function handleDeleteSplit(splitId) {
+    const confirmed = window.confirm("Delete this split? Its linked personal expense will also be removed.");
+    if (!confirmed) return;
+    if (getAuthToken()) {
+      try {
+        await apiDeleteSplit(splitId);
+      } catch (error) {
+        window.alert(error.message || "Failed to delete split.");
+        return;
+      }
+    }
+    const split = splits.find((item) => item.id === splitId);
+    if (split?.payerTransactionId) {
+      setTransactions((previous) => previous.filter((tx) => tx.id !== split.payerTransactionId));
+    } else {
+      setTransactions((previous) => previous.filter((tx) => tx.splitId !== splitId));
+    }
+    setSplits((previous) => previous.filter((item) => item.id !== splitId));
   }
 
   function handleApplyOcrTransaction(ocrTx) {
@@ -3320,6 +3453,16 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
             onOpenStatementImport={() => setShowStatementModal(true)}
           />
         );
+      case "split":
+        return (
+          <SplitPage
+            splits={splits}
+            onCreate={handleCreateSplit}
+            onSettle={handleSettleSplit}
+            onDelete={handleDeleteSplit}
+            onBack={handleBack}
+          />
+        );
       case "events":
         return (
           <EventsPage
@@ -3516,6 +3659,13 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
           label="Activity"
           active={activePage === "activity"}
           onClick={() => navigateTo("activity")}
+        />
+
+        <NavItem
+          icon="⇄"
+          label="Split"
+          active={activePage === "split"}
+          onClick={() => navigateTo("split")}
         />
 
         <button
