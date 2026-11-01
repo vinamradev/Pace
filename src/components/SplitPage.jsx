@@ -39,7 +39,6 @@ export default function SplitPage({ splits=[], onCreate, onSettle, onDelete, onB
     </form>}
     {splits.length===0&&!showForm&&<div className="empty-state"><div>↗</div><h3>No split expenses yet</h3><p>Record a dinner, trip or office expense and track who owes what.</p><button onClick={()=>setShowForm(true)}>＋ Create your first split</button></div>}
     <div className="split-list">{splits.map(s=>{
-      const outstanding=(s.participants||[]).filter(p=>getOutstandingShare(p)>0);
       const settled=(s.participants||[]).reduce((v,p)=>v+Number(p.settledAmount||0),0);
       return <article className="split-item-card" key={s.id}><div className="split-item-top"><div><span className="split-scope-tag">{s.scope==="group"?"GROUP":"PERSONAL"}</span><h3>{s.title}</h3><small>{s.groupName?s.groupName+" · ":""}{s.date} · Paid by {s.paidBy}</small></div><strong>{money(s.amount)}</strong></div><div className="split-progress-track"><span style={{width:`${s.amount?Math.min(100,settled/s.amount*100):0}%`}}/></div><div className="split-person-balances">{(s.participants||[]).map(p=>{
         const due=getOutstandingShare(p);
