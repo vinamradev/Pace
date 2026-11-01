@@ -49,6 +49,7 @@ router.get("/", async (req, res) => {
 // so the group bill is never double-counted as the user's living spend.
 router.post("/", async (req, res) => {
   let payerTransaction = null;
+  let createdSplit = null;
   try {
     const { title, amount, date, category, scope, groupName, splitType, paidBy, paymentMethod, participants } = req.body;
     const total = round2(amount);
@@ -68,6 +69,21 @@ router.post("/", async (req, res) => {
     }
 
     const me = participants.find(p => cleanText(p.name).toLowerCase() === "me");
+    createdSplit = await SplitExpense.create({
+      userId: req.user.id,
+      title: cleanText(title, 160),
+      amount: total,
+      date,
+      category: cleanText(category, 80) || "Other",
+      scope: scope || "personal",
+      groupName: cleanText(groupName, 100),
+      splitType: splitType || "equal",
+      paidBy: cleanText(paidBy),
+      paymentMethod: method,
+      payerTransactionId: null,
+      participants: participants.map(p => ({ name: cleanText(p.name), share: round2(p.share), settledAmount: cleanText(p.name).toLowerCase() === cleanText(paidBy).toLowerCase() ? round2(p.share) : 0, settlements: [] }))
+    });
+
     if (me.share > 0) {
       payerTransaction = await Transaction.create({
         userId: req.user.id,
@@ -79,29 +95,20 @@ router.post("/", async (req, res) => {
         date,
         paymentMethod: method,
         note: "PACE Split • your share only; settlements excluded from spending",
-        source: "manual"
+        source: "manual",
+        splitExpenseId: createdSplit._id
       });
+      createdSplit.payerTransactionId = payerTransaction._id;
+      await createdSplit.save();
     }
 
-    const split = await SplitExpense.create({
-      userId: req.user.id,
-      title: cleanText(title, 160),
-      amount: total,
-      date,
-      category: cleanText(category, 80) || "Other",
-      scope: scope || "personal",
-      groupName: cleanText(groupName, 100),
-      splitType: splitType || "equal",
-      paidBy: cleanText(paidBy),
-      paymentMethod: method,
-      payerTransactionId: payerTransaction?._id || null,
-      participants: participants.map(p => ({ name: cleanText(p.name), share: round2(p.share), settledAmount: cleanText(p.name).toLowerCase() === cleanText(paidBy).toLowerCase() ? round2(p.share) : 0, settlements: [] }))
-    });
-
-    res.status(201).json({ success: true, split: present(split), payerTransaction });
+    res.status(201).json({ success: true, split: present(createdSplit), payerTransaction });
   } catch {
     if (payerTransaction?._id) {
       await Transaction.deleteOne({ _id: payerTransaction._id, userId: req.user.id }).catch(() => {});
+    }
+    if (createdSplit?._id) {
+      await SplitExpense.deleteOne({ _id: createdSplit._id, userId: req.user.id }).catch(() => {});
     }
     res.status(500).json({ success: false, message: "Could not create split expense. No expense was retained." });
   }
