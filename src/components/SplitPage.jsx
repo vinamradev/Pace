@@ -3,7 +3,7 @@ import "./SplitPage.css";
 import { calculateEqualShares, getOutstandingShare, isUserSettlementAllowed, roundToPaise, summarizeUserSplits, validateSplitShares } from "../utils/splitEngine.js";
 
 const money = value => `₹${Number(value || 0).toLocaleString("en-IN",{maximumFractionDigits:2})}`;
-const today = () => new Date().toISOString().slice(0,10);
+const today = () => { const date = new Date(); const offset = date.getTimezoneOffset(); return new Date(date.getTime() - offset * 60_000).toISOString().slice(0,10); };
 const METHODS = ["UPI","Cash","Bank Transfer"];
 
 export default function SplitPage({ splits=[], onCreate, onSettle, onDelete, onBack }) {
