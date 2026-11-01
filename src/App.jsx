@@ -3274,9 +3274,13 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     const confirmed = window.confirm("Delete this transaction?");
     if (!confirmed) return;
 
+    const linkedSplit = splits.find((split) => String(split.payerTransactionId) === String(id));
     setTransactions((previous) =>
       previous.filter((transaction) => transaction.id !== id),
     );
+    if (linkedSplit) {
+      setSplits((previous) => previous.filter((split) => split.id !== linkedSplit.id));
+    }
 
     if (getAuthToken()) {
       apiDeleteTransaction(id).catch(() => {});
@@ -3901,6 +3905,9 @@ function Transaction({ transaction, onEdit, onDelete, detailed = false }) {
             {transaction.eventId && (
               <span className="tx-badge event-badge">💍 Event</span>
             )}
+            {(transaction.splitExpenseId || transaction.splitId) && (
+              <span className="tx-badge split-badge">⇄ Split</span>
+            )}
             {transaction.loanId && (
               <span className="tx-badge loan-badge">🏠 Loan</span>
             )}
@@ -3934,7 +3941,7 @@ function Transaction({ transaction, onEdit, onDelete, detailed = false }) {
           {formatCurrency(transaction.amount)}
         </strong>
 
-        {onEdit && (
+        {onEdit && !transaction.splitExpenseId && !transaction.splitId && (
           <button
             className="transaction-edit"
             type="button"
