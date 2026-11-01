@@ -17,6 +17,7 @@ function validateParticipants(participants, amount) {
   if (!names.some(n => n.toLowerCase() === "me")) return 'Add yourself as a participant using the name "Me".';
   const values = participants.map(p => Number(p.share));
   if (values.some(v => !Number.isFinite(v) || v < 0)) return "Each participant must have a valid, non-negative share.";
+  if (values.some(v => round2(v) !== v)) return "Participant shares must use at most two decimal places.";
   const total = round2(values.reduce((s, v) => s + v, 0));
   if (Math.abs(total - amount) > 0.009) return "Participant shares must add up to the full expense amount.";
   return null;
