@@ -24,6 +24,14 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Check backend JavaScript syntax
+        run: |
+          node --check server/index.js
+          node --check server/models/SplitExpense.js
+          node --check server/models/Transaction.js
+          node --check server/routes/split.routes.js
+          node --check server/routes/transaction.routes.js
+          node --check server/routes/auth.routes.js
       - name: Build PACE frontend
         run: npm run build
       - name: Test split calculations and balances
