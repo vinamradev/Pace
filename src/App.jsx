@@ -3274,12 +3274,15 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
     const confirmed = window.confirm("Delete this transaction?");
     if (!confirmed) return;
 
-    const linkedSplit = splits.find((split) => String(split.payerTransactionId) === String(id));
+    const linkedTransaction = transactions.find((transaction) => String(transaction.id) === String(id));
+    const linkedSplitId = linkedTransaction?.splitId || splits.find(
+      (split) => String(split.payerTransactionId) === String(id),
+    )?.id;
     setTransactions((previous) =>
-      previous.filter((transaction) => transaction.id !== id),
+      previous.filter((transaction) => String(transaction.id) !== String(id)),
     );
-    if (linkedSplit) {
-      setSplits((previous) => previous.filter((split) => split.id !== linkedSplit.id));
+    if (linkedSplitId) {
+      setSplits((previous) => previous.filter((split) => String(split.id) !== String(linkedSplitId)));
     }
 
     if (getAuthToken()) {
