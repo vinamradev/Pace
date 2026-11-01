@@ -674,6 +674,7 @@ router.delete("/account", authenticateToken, async (req, res) => {
         console.warn("[Account Delete] MongoDB standalone fallback executed for user:", userId);
         // Fallback for standalone MongoDB environments
         await Transaction.deleteMany({ userId });
+        await SplitExpense.deleteMany({ userId });
         await Event.deleteMany({ userId });
         await Loan.deleteMany({ userId });
         await Budget.deleteMany({ userId });
