@@ -30,6 +30,7 @@ export function validateSplitShares(total, participants) {
   if (shares.some(share => !Number.isFinite(share) || share < 0)) {
     return "Each participant must have a valid, non-negative share.";
   }
+  if (shares.some(share => roundToPaise(share) !== share)) return "Shares must be entered up to two decimal places.";
   const allocated = roundToPaise(shares.reduce((sum, share) => sum + share, 0));
   if (allocated !== amount) return "Custom shares must add up to the full expense amount.";
   return null;
