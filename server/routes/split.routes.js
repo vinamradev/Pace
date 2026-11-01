@@ -11,7 +11,7 @@ const round2 = value => Math.round((Number(value) + Number.EPSILON) * 100) / 100
 const cleanText = (value, max = 100) => String(value || "").trim().slice(0, max);
 
 function validateParticipants(participants, amount) {
-  if (!Array.isArray(participants) || participants.length < 2 || participants.length > 30) return "Add between 2 and 30 participants.";
+  if (!Array.isArray(participants) || participants.length < 2 || participants.length > 30 || participants.some(p => !p || typeof p !== "object" || Array.isArray(p))) return "Add between 2 and 30 valid participants.";
   const names = participants.map(p => cleanText(p.name));
   if (names.some(n => !n) || new Set(names.map(n => n.toLowerCase())).size !== names.length) return "Participant names must be present and unique.";
   if (!names.some(n => n.toLowerCase() === "me")) return 'Add yourself as a participant using the name "Me".';
@@ -62,6 +62,9 @@ router.post("/", async (req, res) => {
     if (!METHODS.includes(method)) return res.status(400).json({ success: false, message: "Invalid payment method." });
     if (!["personal", "group"].includes(scope || "personal") || !["equal", "custom"].includes(splitType || "equal")) {
       return res.status(400).json({ success: false, message: "Invalid split options." });
+    }
+    if ((scope || "personal") === "group" && !cleanText(groupName, 100)) {
+      return res.status(400).json({ success: false, message: "Enter a name for this group expense." });
     }
     const validation = validateParticipants(participants, total);
     if (validation) return res.status(400).json({ success: false, message: validation });
