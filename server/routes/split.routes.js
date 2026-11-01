@@ -56,7 +56,7 @@ router.post("/", async (req, res) => {
     const total = round2(amount);
     const method = paymentMethod || "UPI";
 
-    if (!cleanText(title, 160) || !Number.isFinite(total) || total <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) {
+    if (!cleanText(title, 160) || !Number.isFinite(total) || total <= 0 || round2(Number(amount)) !== Number(amount) || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) {
       return res.status(400).json({ success: false, message: "Valid title, amount and date are required." });
     }
     if (!METHODS.includes(method)) return res.status(400).json({ success: false, message: "Invalid payment method." });
@@ -132,7 +132,7 @@ router.post("/:id/settlements", async (req, res) => {
       ? cleanText(participant.name).toLowerCase() !== "me"
       : cleanText(participant.name).toLowerCase() === "me";
     if (!isValidCounterparty) return res.status(403).json({ success: false, message: "Only the amount owed to you or by you can be settled here." });
-    if (!Number.isFinite(paid) || paid <= 0 || round2(participant.settledAmount + paid) > round2(participant.share) + 0.001) {
+    if (!Number.isFinite(paid) || paid <= 0 || round2(Number(amount)) !== Number(amount) || round2(participant.settledAmount + paid) > round2(participant.share) + 0.001) {
       return res.status(400).json({ success: false, message: "Settlement amount exceeds the outstanding balance." });
     }
     if (!METHODS.includes(method) || !/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) {
