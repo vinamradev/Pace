@@ -198,6 +198,32 @@ export async function apiDeleteTransaction(id) {
   return await request(`/transactions/${id}`, { method: "DELETE" });
 }
 
+/* ==========================================================================
+   SPLIT EXPENSES & SETTLEMENTS
+   ========================================================================== */
+
+export async function apiGetSplits() {
+  return await request("/splits", { method: "GET" });
+}
+
+export async function apiCreateSplit(split) {
+  return await request("/splits", {
+    method: "POST",
+    body: JSON.stringify(split),
+  });
+}
+
+export async function apiSettleSplit(id, settlement) {
+  return await request(`/splits/${id}/settlements`, {
+    method: "POST",
+    body: JSON.stringify(settlement),
+  });
+}
+
+export async function apiDeleteSplit(id) {
+  return await request(`/splits/${id}`, { method: "DELETE" });
+}
+
 export async function apiDeleteAccount({ password, confirmText } = {}) {
   return await request("/auth/account", {
     method: "DELETE",

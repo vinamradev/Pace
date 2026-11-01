@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "test:security": "node test-security-email.js"
+    "test:security": "node test-security-email.js",
+    "test:split": "node test-split.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

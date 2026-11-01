@@ -1,0 +1,38 @@
+name: PACE Split Feature Checks
+
+on:
+  push:
+    branches:
+      - feature/split-expenses
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Check backend JavaScript syntax
+        run: |
+          node --check server/index.js
+          node --check server/models/SplitExpense.js
+          node --check server/models/Transaction.js
+          node --check server/routes/split.routes.js
+          node --check server/routes/transaction.routes.js
+          node --check server/routes/auth.routes.js
+      - name: Build PACE frontend
+        run: npm run build
+      - name: Test split calculations and balances
+        run: npm --prefix server run test:split

@@ -1,5 +1,6 @@
 import express from "express";
 import Transaction from "../models/Transaction.js";
+import SplitExpense from "../models/SplitExpense.js";
 import Budget from "../models/Budget.js";
 import User from "../models/User.js";
 import Loan from "../models/Loan.js";
@@ -183,6 +184,9 @@ router.put("/:id", async (req, res) => {
     if (!existing) {
       return res.status(404).json({ success: false, message: "Transaction not found or unauthorized" });
     }
+    if (existing.splitExpenseId) {
+      return res.status(409).json({ success: false, message: "Edit this item from Split expenses so the split balances stay in sync." });
+    }
 
     const {
       title,
@@ -261,6 +265,11 @@ router.delete("/:id", async (req, res) => {
 
     if (!deleted) {
       return res.status(404).json({ success: false, message: "Transaction not found or unauthorized" });
+    }
+
+    // A split-linked expense and its balances form one logical record.
+    if (deleted.splitExpenseId) {
+      await SplitExpense.deleteOne({ _id: deleted.splitExpenseId, userId });
     }
 
     // Revert loan principal reduction if loan payment was deleted

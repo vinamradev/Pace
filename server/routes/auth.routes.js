@@ -11,6 +11,7 @@ import Transaction from "../models/Transaction.js";
 import Event from "../models/Event.js";
 import Loan from "../models/Loan.js";
 import Goal from "../models/Goal.js";
+import SplitExpense from "../models/SplitExpense.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import { authRateLimiter, otpRateLimiter } from "../middleware/security.middleware.js";
 import {
@@ -641,6 +642,7 @@ router.delete("/account", authenticateToken, async (req, res) => {
       session.startTransaction();
 
       await Transaction.deleteMany({ userId }, { session });
+      await SplitExpense.deleteMany({ userId }, { session });
       await Event.deleteMany({ userId }, { session });
       await Loan.deleteMany({ userId }, { session });
       await Budget.deleteMany({ userId }, { session });
@@ -672,6 +674,7 @@ router.delete("/account", authenticateToken, async (req, res) => {
         console.warn("[Account Delete] MongoDB standalone fallback executed for user:", userId);
         // Fallback for standalone MongoDB environments
         await Transaction.deleteMany({ userId });
+        await SplitExpense.deleteMany({ userId });
         await Event.deleteMany({ userId });
         await Loan.deleteMany({ userId });
         await Budget.deleteMany({ userId });
