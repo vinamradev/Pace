@@ -1,6 +1,45 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-function equalShares(amount,count){const base=Math.floor(amount/count*100)/100;return Array.from({length:count},(_,i)=>i===count-1?Math.round((amount-base*(count-1))*100)/100:base);}
-test("equal shares sum to total in paise",()=>{for(const [amount,count] of [[1200,3],[100,6],[10,3],[0.1,3]])assert.equal(Math.round(equalShares(amount,count).reduce((a,b)=>a+b,0)*100)/100,amount);});
-test("payer expense is only payer share, not full group bill",()=>{const people=[{name:"Me",share:400},{name:"A",share:400},{name:"B",share:400}];assert.equal(people.find(p=>p.name==="Me").share,400);assert.equal(people.reduce((s,p)=>s+p.share,0),1200);});
-test("settlements are capped at outstanding share",()=>{const share=400,settled=250;assert.ok(settled+150<=share);assert.ok(settled+150.01>share);});
+import {
+  calculateEqualShares,
+  validateSplitShares,
+  getOutstandingShare,
+  isUserSettlementAllowed,
+  summarizeUserSplits,
+} from "../src/utils/splitEngine.js";
+
+test("equal split shares sum exactly to total paise", () => {
+  for (const [amount, count] of [[1200, 3], [100, 6], [10, 3], [0.1, 3], [999.99, 7]]) {
+    const shares = calculateEqualShares(amount, count);
+    assert.equal(Math.round(shares.reduce((sum, share) => sum + share, 0) * 100), Math.round(amount * 100));
+  }
+});
+
+test("validates exact custom shares and requires unique names including Me", () => {
+  assert.equal(validateSplitShares(1200, [{name:"Me",share:400},{name:"A",share:400},{name:"B",share:400}]), null);
+  assert.match(validateSplitShares(1200, [{name:"Me",share:400},{name:"A",share:399}]), /add up/);
+  assert.match(validateSplitShares(1200, [{name:"Me",share:600},{name:"me",share:600}]), /unique/);
+  assert.match(validateSplitShares(1200, [{name:"A",share:600},{name:"B",share:600}]), /Me/);
+});
+
+test("outstanding share never becomes negative", () => {
+  assert.equal(getOutstandingShare({share:400,settledAmount:150}),250);
+  assert.equal(getOutstandingShare({share:400,settledAmount:450}),0);
+});
+
+test("settlement action is limited to balances owed to or by the user", () => {
+  assert.equal(isUserSettlementAllowed({paidBy:"Me"},{name:"Friend"}),true);
+  assert.equal(isUserSettlementAllowed({paidBy:"Me"},{name:"Me"}),false);
+  assert.equal(isUserSettlementAllowed({paidBy:"Friend"},{name:"Me"}),true);
+  assert.equal(isUserSettlementAllowed({paidBy:"Friend"},{name:"Other friend"}),false);
+});
+
+test("summary shows user receivable and payable balances only", () => {
+  const summary = summarizeUserSplits([
+    {paidBy:"Me",participants:[{name:"Me",share:400,settledAmount:400},{name:"A",share:400,settledAmount:100}]},
+    {paidBy:"A",participants:[{name:"Me",share:250,settledAmount:50},{name:"A",share:250,settledAmount:250}]}
+  ]);
+  assert.equal(summary.owedToYou,300);
+  assert.equal(summary.youOwe,200);
+  assert.equal(summary.openSplits,2);
+});
