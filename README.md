@@ -69,7 +69,19 @@ Comprehensive debt tracking and proactive debt-freedom simulations:
 
 ---
 
-### 6. 📊 Reports & Month-to-Month Insights
+### 6. ⇄ Split Expenses & Group Settlements
+- Record personal shared expenses or named group expenses (trips, meals, office events).
+- Split bills equally with paise-safe rounding or enter custom participant shares.
+- Track who paid, the user's own share, receivables (owed to you), and payables (you owe).
+- Record partial or full settlements manually using UPI, Cash, or Bank Transfer, with date and optional reference note.
+- **Financial Engine Integrity:** only the PACE user's own share is written to the existing `expense` ledger; other participants' shares stay in the split balance ledger. Settlement entries clear balances and are not duplicated as new expenses/income.
+- Split records are private to the authenticated account and are removed with their linked expense or account deletion.
+
+**Split calculation tests:** run `cd server && npm run test:split`.
+
+---
+
+### 7. 📊 Reports & Month-to-Month Insights
 - Side-by-side month comparison (e.g., September 2026 vs August 2026).
 - 5-Pillar comparative delta table with percentage shifts.
 - Major Head comparison with visual variance indicators.
