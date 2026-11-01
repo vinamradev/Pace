@@ -3139,7 +3139,7 @@ function AuthenticatedApp({ currentUser, setCurrentUser }) {
       participants: payload.participants.map((person, index) => ({
         ...person,
         id: `${id}_person_${index}`,
-        settledAmount: 0,
+        settledAmount: person.name.toLowerCase() === payload.paidBy.toLowerCase() ? Number(person.share) : 0,
         settlements: [],
       })),
       createdAt: new Date().toISOString(),
